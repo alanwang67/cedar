@@ -5070,46 +5070,6 @@ mod issue_604 {
     }
 }
 
-mod issue_606 {
-    use super::{expect_err, ExpectedErrorMessageBuilder};
-    use crate::{PolicyId, Template};
-    use cool_asserts::assert_matches;
-
-    #[test]
-    fn est_template() {
-        let est_json = serde_json::json!({
-            "effect": "permit",
-            "principal": { "op": "All" },
-            "action": { "op": "All" },
-            "resource": { "op": "All" },
-            "conditions": [
-                {
-                    "kind": "when",
-                    "body": {
-                        "==": {
-                            "left": { "Var": "principal" },
-                            "right": { "Slot": "?principal" }
-                        }
-                    }
-                }
-            ]
-        });
-
-        let tid = PolicyId::new("t0");
-        // We should get an error here after trying to construct a template with a slot in the condition
-        assert_matches!(Template::from_json(Some(tid), est_json.clone()), Err(e) => {
-            expect_err(
-                &est_json,
-                &miette::Report::new(e),
-                &ExpectedErrorMessageBuilder::error("error deserializing a policy/template from JSON")
-                    .source("found template slot ?principal in a `when` clause")
-                    .help("slots are currently unsupported in `when` clauses")
-                    .build(),
-            );
-        });
-    }
-}
-
 mod issue_619 {
     use crate::{eval_expression, Context, Entities, EntityUid, EvalResult, Policy, Request};
     use cool_asserts::assert_matches;
@@ -7790,5 +7750,46 @@ mod test_entities_api {
         entities = entities.upsert_entities(vec![e1_updated], None).unwrap();
         assert_eq!(entities.len(), 2);
         assert!(entities.is_ancestor_of(&e2_uid, &e1_uid));
+    }
+}
+
+mod test_est_template_slot_not_in_scope_in_condition_check {
+    use super::{expect_err, ExpectedErrorMessageBuilder};
+    use crate::{PolicyId, Template};
+    use cool_asserts::assert_matches;
+
+    #[test]
+    fn est_template() {
+        let est_json = serde_json::json!({
+            "effect": "permit",
+            "principal": { "op": "All" },
+            "action": { "op": "All" },
+            "resource": { "op": "All" },
+            "conditions": [
+                {
+                    "kind": "when",
+                    "body": {
+                        "==": {
+                            "left": { "Var": "principal" },
+                            "right": { "Slot": "?principal" }
+                        }
+                    }
+                }
+            ]
+        });
+
+        let tid = PolicyId::new("t0");
+        // We should get an error here after trying to construct a 
+        // template with a slot in the condition but not in the scope
+        assert_matches!(Template::from_json(Some(tid), est_json.clone()), Err(e) => {
+            expect_err(
+                &est_json,
+                &miette::Report::new(e),
+                &ExpectedErrorMessageBuilder::error("error deserializing a policy/template from JSON")
+                    .source("found template slot ?principal in a `when` clause, but not found in the scope")
+                    .help("to use a template slot in the `when` clause it must be binded in the scope")
+                    .build(),
+            );
+        });
     }
 }

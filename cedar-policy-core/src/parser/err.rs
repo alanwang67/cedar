@@ -148,11 +148,11 @@ pub enum ToASTErrorKind {
     /// conflicting annotations
     #[error("duplicate annotation: @{0}")]
     DuplicateAnnotation(ast::AnyId),
-    /// Returned when a policy contains template slots in a when/unless clause.
-    /// This is not currently supported; see [RFC 3](https://github.com/cedar-policy/rfcs/pull/3).
+    /// Returned when a policy does not contain ?principal and ?resource template slots
+    /// in the scope but appears in the when/unless clause. 
     #[error(transparent)]
     #[diagnostic(transparent)]
-    SlotsInConditionClause(#[from] parse_errors::SlotsInConditionClause),
+    SlotsNotInScopeInConditionClause (#[from] parse_errors::SlotsNotInScopeInConditionClause), 
     /// Returned when a policy is missing one of the three required scope elements
     /// (`principal`, `action`, and `resource`)
     #[error("this policy is missing the `{0}` variable in the scope")]
@@ -455,9 +455,9 @@ impl ToASTErrorKind {
         }
     }
 
-    /// Constructor for the [`ToASTErrorKind::SlotsInConditionClause`] error
-    pub fn slots_in_condition_clause(slot: ast::Slot, clause_type: &'static str) -> Self {
-        parse_errors::SlotsInConditionClause { slot, clause_type }.into()
+    /// Constructor for the [`ToASTErrorKind::SlotsNotInScopeInConditionClause`] error
+    pub fn slots_not_in_scope_in_condition_clause(slot: ast::Slot, clause_type: &'static str) -> Self { 
+        parse_errors::SlotsNotInScopeInConditionClause { slot, clause_type }.into()
     }
 
     /// Constructor for the [`ToASTErrorKind::ExpectedStaticPolicy`] error
@@ -546,11 +546,11 @@ pub mod parse_errors {
         }
     }
 
-    /// Details about a `SlotsInConditionClause` error.
+    /// Details about a `SlotsNotInScopeInConditionClause` error.
     #[derive(Debug, Clone, Diagnostic, Error, PartialEq, Eq)]
-    #[error("found template slot {} in a `{clause_type}` clause", slot.id)]
-    #[diagnostic(help("slots are currently unsupported in `{clause_type}` clauses"))]
-    pub struct SlotsInConditionClause {
+    #[error("found template slot {} in a `{clause_type}` clause, but not found in the scope", slot.id)]
+    #[diagnostic(help("to use a template slot in the `{clause_type}` clause it must be binded in the scope"))]
+    pub struct SlotsNotInScopeInConditionClause {
         /// Slot that was found in a when/unless clause
         pub(crate) slot: ast::Slot,
         /// Clause type, e.g. "when" or "unless"

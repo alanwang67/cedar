@@ -2363,7 +2363,7 @@ mod test {
                 .exactly_one_underline("?principal")
                 .build()
             );
-            assert_eq!(e.len(), 2);
+            assert_eq!(e.len(), 1);
         });
     }
 

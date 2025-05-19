@@ -756,15 +756,15 @@ mod tests {
     }
 
     #[test]
-    fn no_slots_in_condition() {
+    fn template_slots_in_valid_positions() {
         let src = r#"
             permit(principal, action, resource) when {
                 resource == ?resource
             };
             "#;
         let slot_in_when_clause =
-            ExpectedErrorMessageBuilder::error("found template slot ?resource in a `when` clause")
-                .help("slots are currently unsupported in `when` clauses")
+            ExpectedErrorMessageBuilder::error("found template slot ?resource in a `when` clause, but not found in the scope")
+                .help("to use a template slot in the `when` clause it must be binded in the scope")
                 .exactly_one_underline("?resource")
                 .build();
         let unexpected_template = ExpectedErrorMessageBuilder::error(
@@ -802,8 +802,8 @@ mod tests {
             };
             "#;
         let slot_in_when_clause =
-            ExpectedErrorMessageBuilder::error("found template slot ?principal in a `when` clause")
-                .help("slots are currently unsupported in `when` clauses")
+            ExpectedErrorMessageBuilder::error("found template slot ?principal in a `when` clause, but not found in the scope")
+                .help("to use a template slot in the `when` clause it must be binded in the scope")
                 .exactly_one_underline("?principal")
                 .build();
         let unexpected_template = ExpectedErrorMessageBuilder::error(
@@ -869,9 +869,9 @@ mod tests {
             };
             "#;
         let slot_in_unless_clause = ExpectedErrorMessageBuilder::error(
-            "found template slot ?resource in a `unless` clause",
+            "found template slot ?resource in a `unless` clause, but not found in the scope",
         )
-        .help("slots are currently unsupported in `unless` clauses")
+        .help("to use a template slot in the `unless` clause it must be binded in the scope")
         .exactly_one_underline("?resource")
         .build();
         let unexpected_template = ExpectedErrorMessageBuilder::error(
@@ -909,9 +909,9 @@ mod tests {
             };
             "#;
         let slot_in_unless_clause = ExpectedErrorMessageBuilder::error(
-            "found template slot ?principal in a `unless` clause",
+            "found template slot ?principal in a `unless` clause, but not found in the scope",
         )
-        .help("slots are currently unsupported in `unless` clauses")
+        .help("to use a template slot in the `unless` clause it must be binded in the scope")
         .exactly_one_underline("?principal")
         .build();
         let unexpected_template = ExpectedErrorMessageBuilder::error(
@@ -979,14 +979,14 @@ mod tests {
             };
             "#;
         let slot_in_when_clause =
-            ExpectedErrorMessageBuilder::error("found template slot ?resource in a `when` clause")
-                .help("slots are currently unsupported in `when` clauses")
+            ExpectedErrorMessageBuilder::error("found template slot ?resource in a `when` clause, but not found in the scope")
+                .help("to use a template slot in the `when` clause it must be binded in the scope")
                 .exactly_one_underline("?resource")
                 .build();
         let slot_in_unless_clause = ExpectedErrorMessageBuilder::error(
-            "found template slot ?resource in a `unless` clause",
+            "found template slot ?resource in a `unless` clause, but not found in the scope",
         )
-        .help("slots are currently unsupported in `unless` clauses")
+        .help("to use a template slot in the `unless` clause it must be binded in the scope")
         .exactly_one_underline("?resource")
         .build();
         let unexpected_template = ExpectedErrorMessageBuilder::error(
