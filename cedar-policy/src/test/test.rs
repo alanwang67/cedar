@@ -7779,7 +7779,7 @@ mod test_est_template_slot_not_in_scope_in_condition_check {
         });
 
         let tid = PolicyId::new("t0");
-        // We should get an error here after trying to construct a 
+        // We should get an error here after trying to construct a
         // template with a slot in the condition but not in the scope
         assert_matches!(Template::from_json(Some(tid), est_json.clone()), Err(e) => {
             expect_err(

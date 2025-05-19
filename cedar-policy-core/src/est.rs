@@ -320,7 +320,9 @@ impl Clause {
         is_when: bool,
     ) -> Result<ast::Expr, FromJsonError> {
         for slot in e.slots() {
-            if (slot.id.is_principal() && !has_principal) || (slot.id.is_resource() && !has_resource) {
+            if (slot.id.is_principal() && !has_principal)
+                || (slot.id.is_resource() && !has_resource)
+            {
                 return Err(FromJsonError::SlotsNotInScopeInConditionClause(
                     parse_errors::SlotsNotInScopeInConditionClause {
                         slot,
