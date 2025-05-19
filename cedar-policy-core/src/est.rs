@@ -280,7 +280,7 @@ impl Policy {
         id: Option<ast::PolicyID>,
     ) -> Result<ast::Template, FromJsonError> {
         let id = id.unwrap_or_else(|| ast::PolicyID::from_string("JSON policy"));
-        let has_principal_in_scope: bool = self.principal.has_slot();
+        let has_principal_in_scope = self.principal.has_slot();
         let has_resource_in_scope = self.resource.has_slot();
         let mut conditions_iter = self.conditions.into_iter().map(|cond| {
             cond.try_into_ast(has_principal_in_scope, has_resource_in_scope, id.clone())
