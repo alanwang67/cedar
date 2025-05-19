@@ -322,7 +322,7 @@ impl Node<Option<cst::Policy>> {
         // convert conditions
         let maybe_conds = ParseErrors::transpose(policy.conds.iter().map(|c| {
             let (e, is_when) = c.to_expr::<ast::ExprBuilder<()>>()?;
-            let (p, _, r) = policy.extract_scope().unwrap();
+            let (p, _, r) = policy.extract_scope()?;
             let slots_in_scope: HashSet<ast::Slot> =
                 HashSet::from_iter(p.as_expr().slots().chain(r.as_expr().slots()));
 
@@ -430,17 +430,26 @@ impl Node<Option<cst::Policy>> {
 
         // convert conditions
         let maybe_conds = ParseErrors::transpose(policy.conds.iter().map(|c| {
-            let (e, is_when) = c.to_expr::<ExprWithErrsBuilder<()>>()?;
-            let slot_errs = e.slots().map(|slot| {
-                ToASTError::new(
-                    ToASTErrorKind::slots_in_condition_clause(
-                        slot.clone(),
-                        if is_when { "when" } else { "unless" },
-                    ),
-                    slot.loc.unwrap_or_else(|| c.loc.clone()),
-                )
-                .into()
-            });
+            let (e, is_when) = c.to_expr::<ast::ExprBuilder<()>>()?;
+            let (p, _, r) = policy.extract_scope()?;
+            let slots_in_scope: HashSet<ast::Slot> =
+                HashSet::from_iter(p.as_expr().slots().chain(r.as_expr().slots()));
+
+            // slots that are in the condition but not in the scope
+            let slot_errs = e
+                .slots()
+                .filter(|slot| !slots_in_scope.contains(&slot))
+                .map(|slot| {
+                    ToASTError::new(
+                        ToASTErrorKind::slots_not_in_scope_in_condition_clause(
+                            slot.clone(),
+                            if is_when { "when" } else { "unless" },
+                        ),
+                        slot.loc.unwrap_or_else(|| c.loc.clone()),
+                    )
+                    .into()
+                });
+
             match ParseErrors::from_iter(slot_errs) {
                 Some(errs) => Err(errs),
                 None => Ok(e),
@@ -3557,7 +3566,7 @@ mod tests {
     }
 
     #[test]
-    fn template_slot_in_condition() {
+    fn template_slot_in_scope_in_condition() {
         let src = r#"permit(principal == ?principal, action == Action::"action", resource in ?resource) when {?principal.name == true && ?resource.valid == 5};"#;
         text_to_cst::parse_policy(src)
             .expect("parse_error")
