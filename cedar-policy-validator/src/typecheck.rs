@@ -377,10 +377,16 @@ impl<'a> SingleEnvTypechecker<'a> {
                         .map(Type::named_entity_reference)
                         .unwrap_or_else(Type::any_entity_reference)
                 } else {
-                    Type::any_entity_reference()
+                    match slotid.ret_type_if_typed_slot() {
+                        Some(t) => match Type::get_type_from_schema_type(t, self.schema) {
+                            Ok(x) => x,
+                            Err(_) => Type::any_entity_reference(),
+                        },
+                        None => Type::any_entity_reference(),
+                    }
                 }))
                 .with_same_source_loc(e)
-                .slot(*slotid),
+                .slot(slotid.clone()),
             ),
 
             // Literal booleans get singleton type according to their value.

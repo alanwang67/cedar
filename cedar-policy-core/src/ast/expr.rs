@@ -284,12 +284,24 @@ impl<T> Expr<T> {
         expr_iterator::ExprIterator::new(self)
     }
 
-    /// Iterate over all of the slots in this policy AST
+    /// Iterate over all of the principal & resource slots in this policy AST
     pub fn slots(&self) -> impl Iterator<Item = Slot> + '_ {
         self.subexpressions()
             .filter_map(|exp| match &exp.expr_kind {
-                ExprKind::Slot(slotid) => Some(Slot {
-                    id: *slotid,
+                ExprKind::Slot(slotid) if (slotid.is_principal() || slotid.is_resource()) => Some(Slot {
+                    id: slotid.clone(),
+                    loc: exp.source_loc().cloned(),
+                }),
+                _ => None,
+            })
+    }
+
+    /// Iterate over all of the typed slots in this policy AST
+    pub fn typed_slots(&self) -> impl Iterator<Item = Slot> + '_ {
+        self.subexpressions()
+            .filter_map(|exp| match &exp.expr_kind {
+                ExprKind::Slot(slotid) if slotid.is_typed_slot() => Some(Slot {
+                    id: slotid.clone(),
                     loc: exp.source_loc().cloned(),
                 }),
                 _ => None,
@@ -1750,7 +1762,7 @@ mod test {
         let e = Expr::slot(SlotId::principal());
         let p = SlotId::principal();
         let r = SlotId::resource();
-        let set: HashSet<SlotId> = HashSet::from_iter([p]);
+        let set: HashSet<SlotId> = HashSet::from_iter([p.clone()]);
         assert_eq!(set, e.slots().map(|slot| slot.id).collect::<HashSet<_>>());
         let e = Expr::or(
             Expr::slot(SlotId::principal()),
@@ -1760,7 +1772,7 @@ mod test {
                 Expr::val(false),
             ),
         );
-        let set: HashSet<SlotId> = HashSet::from_iter([p, r]);
+        let set: HashSet<SlotId> = HashSet::from_iter([p.clone(), r.clone()]);
         assert_eq!(set, e.slots().map(|slot| slot.id).collect::<HashSet<_>>());
     }
 

@@ -90,6 +90,7 @@ pub struct Template {
     ///
     /// Note that `slots` may be empty, in which case this `Template` represents a static policy
     slots: Vec<Slot>,
+    typed_slots: Vec<Slot>
 }
 
 impl From<Template> for TemplateBody {
@@ -210,6 +211,7 @@ impl Template {
         Template {
             body: self.body.new_id(id),
             slots: self.slots.clone(),
+            typed_slots: self.typed_slots.clone(),
         }
     }
 
@@ -293,8 +295,8 @@ impl Template {
             Ok(())
         } else {
             Err(LinkingError::from_unbound_and_extras(
-                unbound.into_iter().map(|slot| slot.id),
-                extra.into_iter().copied(),
+                unbound.into_iter().map(|slot| slot.id.clone()),
+                extra.into_iter().cloned(),
             ))
         }
     }
@@ -322,6 +324,7 @@ impl Template {
         let t = Arc::new(Self {
             body,
             slots: vec![],
+            typed_slots: vec![],
         });
         t.check_invariant();
         let p = Policy::new(Arc::clone(&t), None, HashMap::new());
@@ -334,7 +337,8 @@ impl From<TemplateBody> for Template {
         // INVARIANT: (slot cache correctness)
         // Pull all the slots out of the template body's condition.
         let slots = body.condition().slots().collect::<Vec<_>>();
-        Self { body, slots }
+        let typed_slots = body.condition().typed_slots().collect::<Vec<_>>();
+        Self { body, slots, typed_slots }
     }
 }
 
@@ -2055,7 +2059,7 @@ mod test {
             let t = Arc::new(template);
             let env = t
                 .slots()
-                .map(|slot| (slot.id, EntityUID::with_eid("eid")))
+                .map(|slot| (slot.id.clone(), EntityUID::with_eid("eid")))
                 .collect();
             let _ = Template::link(t, PolicyID::from_string("id"), env).expect("Linking failed");
         }

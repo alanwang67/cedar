@@ -33,7 +33,7 @@ use std::{
 
 use cedar_policy_core::{
     ast::{
-        BorrowedRestrictedExpr, EntityType, EntityUID, Name, PartialValue, RestrictedExpr, Value,
+        BorrowedRestrictedExpr, Entity, EntityType, EntityUID, Name, PartialValue, RestrictedExpr, Value
     },
     entities::{
         conformance::typecheck_restricted_expr_against_schematype,
@@ -119,6 +119,22 @@ impl Type {
         }
     }
 
+    /// Given a core schema type construct the type needed for the type checker 
+    /// by using the schema 
+    pub(crate) fn get_type_from_schema_type(t: CoreSchemaType, schema: &ValidatorSchema) -> Result<Type, String> {
+        match t {
+            CoreSchemaType::Bool => Ok(Type::primitive_boolean()),
+            CoreSchemaType::Long => Ok(Type::primitive_long()),
+            CoreSchemaType::String => Ok(Type::primitive_string()),
+            CoreSchemaType::Set { element_ty } => Ok(Type::set(Type::get_type_from_schema_type(*element_ty, schema)?)),
+            _ => Err("Conversion for type not implemented yet".into()),
+            // CoreSchemaType::EmptySet => 
+            // CoreSchemaType::Record { attrs, open_attrs } => 
+            // CoreSchemaType::Entity { ty } =>
+            // CoreSchemaType::Extension { name: () } => 
+        }
+    }
+     
     /// Construct a type for a literal EUID. This type will be a named entity
     /// type for the type of the [`EntityUID`].
     pub(crate) fn euid_literal(entity: &EntityUID, schema: &ValidatorSchema) -> Option<Type> {

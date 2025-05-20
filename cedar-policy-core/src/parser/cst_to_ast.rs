@@ -2032,6 +2032,7 @@ impl From<ast::SlotId> for cst::Slot {
         match slot {
             ast::SlotId(ast::ValidSlotId::Principal) => cst::Slot::Principal,
             ast::SlotId(ast::ValidSlotId::Resource) => cst::Slot::Resource,
+            ast::SlotId(ast::ValidSlotId::TypedSlot(_p, _r)) => cst::Slot::Other(_p.to_smolstr()), 
         }
     }
 }

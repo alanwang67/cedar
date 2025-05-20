@@ -28,6 +28,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use thiserror::Error;
 
+use crate::entities::{Schema, SchemaType};
 use crate::parser::err::{ParseError, ParseErrors, ToASTError, ToASTErrorKind};
 use crate::parser::Loc;
 use crate::FromNormalizedStr;
@@ -287,7 +288,7 @@ impl<'de> Deserialize<'de> for InternalName {
 /// Clone is O(1).
 // This simply wraps a separate enum -- currently [`ValidSlotId`] -- in case we
 // want to generalize later
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct SlotId(pub(crate) ValidSlotId);
 
@@ -311,6 +312,19 @@ impl SlotId {
     pub fn is_resource(&self) -> bool {
         matches!(self, Self(ValidSlotId::Resource))
     }
+
+    /// Check if a slot represents a typed slot 
+    pub fn is_typed_slot(&self) -> bool {
+        matches!(self, Self(ValidSlotId::TypedSlot(_, _)))
+    }
+
+    /// Returns the type of the typed slot 
+    pub fn ret_type_if_typed_slot(&self) -> Option<SchemaType> {
+        match self.0.clone() {
+            ValidSlotId::TypedSlot(_n, t) => Some(t),
+            _ => None 
+        }
+    }
 }
 
 impl From<PrincipalOrResource> for SlotId {
@@ -329,12 +343,13 @@ impl std::fmt::Display for SlotId {
 }
 
 /// Two possible variants for Slots
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub(crate) enum ValidSlotId {
     #[serde(rename = "?principal")]
     Principal,
     #[serde(rename = "?resource")]
     Resource,
+    TypedSlot(Name, SchemaType)
 }
 
 impl std::fmt::Display for ValidSlotId {
@@ -342,6 +357,7 @@ impl std::fmt::Display for ValidSlotId {
         let s = match self {
             ValidSlotId::Principal => "principal",
             ValidSlotId::Resource => "resource",
+            ValidSlotId::TypedSlot(n, _s) => "typed_slot",
         };
         write!(f, "?{s}")
     }
