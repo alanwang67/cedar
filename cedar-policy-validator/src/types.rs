@@ -134,11 +134,22 @@ impl Type {
                 *element_ty,
                 schema,
             )?)),
-            _ => Err("Conversion for type not implemented yet".into()),
-            // CoreSchemaType::EmptySet =>
+            CoreSchemaType::EmptySet => Ok(Type::Set { element_type: None }),
+            CoreSchemaType::Entity { ty } if ty.is_action() => {
+                // ALAN: we need to fix the unwrap so that we can catch the error earlier 
+                // this happens in the case when we have an action entity whose 
+                // type is not in the schema 
+                Ok(Type::EntityOrRecord(EntityRecordKind::ActionEntity {
+                    name: ty.clone(),
+                    attrs: schema.get_entity_type(&ty).unwrap().attributes.clone(),
+                }))
+            },
+            // CoreSchemaType::Entity { ty } => {  // ALAN: this is the case where it is not an action entity
+
+            // }
             // CoreSchemaType::Record { attrs, open_attrs } =>
-            // CoreSchemaType::Entity { ty } =>
-            // CoreSchemaType::Extension { name: () } =>
+            CoreSchemaType::Extension { name } => Ok(Type::ExtensionType { name }), 
+            _ => Err("Conversion for type not implemented yet".into()),
         }
     }
 

@@ -350,6 +350,9 @@ impl std::fmt::Display for SlotId {
 /// Two possible variants for Slots
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub(crate) enum ValidSlotId {
+    // ALAN: We will have to edit Principal and Resource to have Option values of SchemaTypes here
+    // the other option is to move this to the policy and just have a map from Principal
+    // and Resource slot into their corresponding types
     #[serde(rename = "?principal")]
     Principal,
     #[serde(rename = "?resource")]
