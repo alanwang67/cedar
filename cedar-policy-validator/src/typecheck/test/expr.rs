@@ -64,6 +64,28 @@ fn slot_typechecks() {
 }
 
 #[test]
+fn typed_slot_typechecks() {
+    assert_typechecks_empty_schema(
+        &Expr::slot(SlotId::typed_slot(
+            cedar_policy_core::ast::Name::from_str("typed_slot").unwrap(),
+            cedar_policy_core::entities::SchemaType::Bool,
+        )),
+        &&Type::primitive_boolean(),
+    );
+}
+
+#[test]
+fn typed_slot_in_add_typechecks() {
+    let typed_slot = Expr::slot(SlotId::typed_slot(
+        cedar_policy_core::ast::Name::from_str("typed_slot").unwrap(),
+        cedar_policy_core::entities::SchemaType::Long,
+    ));
+    let expr = &Expr::add(typed_slot, Expr::val(1));
+
+    assert_typechecks_empty_schema(&expr, &Type::primitive_long());
+}
+
+#[test]
 fn slot_in_typechecks() {
     let etype = json_schema::StandardEntityType {
         member_of_types: vec![],

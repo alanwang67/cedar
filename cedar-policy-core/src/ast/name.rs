@@ -303,6 +303,11 @@ impl SlotId {
         Self(ValidSlotId::Resource)
     }
 
+    /// Create a typed slot
+    pub fn typed_slot(n: Name, t: SchemaType) -> Self {
+        Self(ValidSlotId::TypedSlot(n, t))
+    }
+
     /// Check if a slot represents a principal
     pub fn is_principal(&self) -> bool {
         matches!(self, Self(ValidSlotId::Principal))
@@ -313,16 +318,16 @@ impl SlotId {
         matches!(self, Self(ValidSlotId::Resource))
     }
 
-    /// Check if a slot represents a typed slot 
+    /// Check if a slot represents a typed slot
     pub fn is_typed_slot(&self) -> bool {
         matches!(self, Self(ValidSlotId::TypedSlot(_, _)))
     }
 
-    /// Returns the type of the typed slot 
+    /// Returns the type of the typed slot
     pub fn ret_type_if_typed_slot(&self) -> Option<SchemaType> {
         match self.0.clone() {
             ValidSlotId::TypedSlot(_n, t) => Some(t),
-            _ => None 
+            _ => None,
         }
     }
 }
@@ -349,7 +354,7 @@ pub(crate) enum ValidSlotId {
     Principal,
     #[serde(rename = "?resource")]
     Resource,
-    TypedSlot(Name, SchemaType)
+    TypedSlot(Name, SchemaType),
 }
 
 impl std::fmt::Display for ValidSlotId {

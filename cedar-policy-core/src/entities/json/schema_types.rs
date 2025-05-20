@@ -16,9 +16,9 @@
 
 use crate::ast::{EntityType, Name, Type};
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
 use std::collections::BTreeMap;
-use serde::{Serialize, Deserialize}; 
 
 /// Possible types that schema-based parsing can expect for Cedar values.
 #[derive(Debug, Hash, PartialEq, Ord, PartialOrd, Eq, Clone, Serialize, Deserialize)]

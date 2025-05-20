@@ -90,7 +90,7 @@ pub struct Template {
     ///
     /// Note that `slots` may be empty, in which case this `Template` represents a static policy
     slots: Vec<Slot>,
-    typed_slots: Vec<Slot>
+    typed_slots: Vec<Slot>,
 }
 
 impl From<Template> for TemplateBody {
@@ -338,7 +338,11 @@ impl From<TemplateBody> for Template {
         // Pull all the slots out of the template body's condition.
         let slots = body.condition().slots().collect::<Vec<_>>();
         let typed_slots = body.condition().typed_slots().collect::<Vec<_>>();
-        Self { body, slots, typed_slots }
+        Self {
+            body,
+            slots,
+            typed_slots,
+        }
     }
 }
 
