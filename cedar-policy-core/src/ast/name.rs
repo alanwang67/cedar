@@ -28,7 +28,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use thiserror::Error;
 
-use crate::entities::{Schema, SchemaType};
+use crate::entities::SchemaType;
 use crate::parser::err::{ParseError, ParseErrors, ToASTError, ToASTErrorKind};
 use crate::parser::Loc;
 use crate::FromNormalizedStr;

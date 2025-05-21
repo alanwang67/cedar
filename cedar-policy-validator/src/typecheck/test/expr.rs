@@ -20,7 +20,8 @@
 use std::{str::FromStr, vec};
 
 use cedar_policy_core::{
-    ast::{BinaryOp, EntityType, EntityUID, Expr, Pattern, PatternElem, SlotId, Var}, entities::Schema, extensions::Extensions
+    ast::{BinaryOp, EntityType, EntityUID, Expr, Pattern, PatternElem, SlotId, Var},
+    extensions::Extensions,
 };
 use itertools::Itertools;
 use serde_json::json;
@@ -86,7 +87,8 @@ fn typed_slot_in_add_typechecks() {
 
 #[test]
 fn typed_slot_with_attribute_access_typechecks() {
-    let schema : json_schema::NamespaceDefinition<RawName> = serde_json::from_str(r#"
+    let schema: json_schema::NamespaceDefinition<RawName> = serde_json::from_str(
+        r#"
         {
             "entityTypes": {
                 "User": {
@@ -147,18 +149,28 @@ fn typed_slot_with_attribute_access_typechecks() {
                     }
                 }
             }
-        }"#
+        }"#,
     )
     .expect("Expected valid schema");
     let typed_slot = Expr::slot(SlotId::typed_slot(
         cedar_policy_core::ast::Name::from_str("typed_slot").unwrap(),
-        cedar_policy_core::entities::SchemaType::Entity { ty: EntityType::from_normalized_str(&"User").unwrap() },
+        cedar_policy_core::entities::SchemaType::Entity {
+            ty: EntityType::from_normalized_str(&"User").unwrap(),
+        },
     ));
 
     // assert_typechecks_for_mode(schema.clone(), &Expr::get_attr(typed_slot, SmolStr::new(&"age")), &&Type::primitive_long(), ValidationMode::Strict);
-    let expr = &Expr::is_eq(Expr::get_attr(typed_slot, SmolStr::new(&"age")), Expr::val(1));
+    let expr = &Expr::is_eq(
+        Expr::get_attr(typed_slot, SmolStr::new(&"age")),
+        Expr::val(1),
+    );
 
-    assert_typechecks_for_mode(schema.clone(), &expr, &Type::primitive_boolean(), ValidationMode::Strict);
+    assert_typechecks_for_mode(
+        schema.clone(),
+        &expr,
+        &Type::primitive_boolean(),
+        ValidationMode::Strict,
+    );
 }
 
 #[test]

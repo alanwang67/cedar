@@ -33,8 +33,7 @@ use std::{
 
 use cedar_policy_core::{
     ast::{
-        BorrowedRestrictedExpr, Entity, EntityType, EntityUID, Name, PartialValue, RestrictedExpr,
-        Value,
+        BorrowedRestrictedExpr, EntityType, EntityUID, Name, PartialValue, RestrictedExpr, Value,
     },
     entities::{
         conformance::typecheck_restricted_expr_against_schematype,
@@ -136,20 +135,46 @@ impl Type {
             )?)),
             CoreSchemaType::EmptySet => Ok(Type::Set { element_type: None }),
             CoreSchemaType::Entity { ty } if ty.is_action() => {
-                // ALAN: we need to fix the unwrap so that we can catch the error earlier 
-                // this happens in the case when we have an action entity whose 
-                // type is not in the schema 
-                Ok(Type::EntityOrRecord(EntityRecordKind::ActionEntity {
-                    name: ty.clone(),
-                    attrs: schema.get_entity_type(&ty).unwrap().attributes.clone(),
-                }))
-            },
-            CoreSchemaType::Entity { ty } => {  // ALAN: this is the case where it is not an action entity
-                Ok(Type::EntityOrRecord(EntityRecordKind::Entity(EntityLUB::single_entity(ty))))
+                if let Some(s) = schema.get_entity_type(&ty) {
+                    Ok(Type::EntityOrRecord(EntityRecordKind::ActionEntity {
+                        name: ty.clone(),
+                        attrs: s.attributes.clone(),
+                    }))
+                } else {
+                    Err("Action entity not found in associated ValidatorSchema".into())
+                }
             }
-            // CoreSchemaType::Record { attrs, open_attrs } =>
-            CoreSchemaType::Extension { name } => Ok(Type::ExtensionType { name }), 
-            _ => Err("Conversion for type not implemented yet".into()),
+            CoreSchemaType::Entity { ty } => Ok(Type::EntityOrRecord(EntityRecordKind::Entity(
+                EntityLUB::single_entity(ty),
+            ))),
+            CoreSchemaType::Record { attrs, open_attrs } => {
+                let open_attributes = match open_attrs {
+                    true => OpenTag::OpenAttributes,
+                    false => OpenTag::ClosedAttributes,
+                };
+
+                let attrs = attrs
+                    .into_iter()
+                    .map(|(k, v)| {
+                        let t = Type::get_type_from_schema_type(v.schema_type().clone(), schema)
+                            .unwrap();
+
+                        Ok((
+                            k,
+                            AttributeType {
+                                attr_type: t,
+                                is_required: v.is_required(),
+                            },
+                        ))
+                    })
+                    .collect::<Result<_, String>>()?;
+
+                Ok(Type::EntityOrRecord(EntityRecordKind::Record {
+                    attrs: Attributes { attrs },
+                    open_attributes,
+                }))
+            }
+            CoreSchemaType::Extension { name } => Ok(Type::ExtensionType { name }),
         }
     }
 
