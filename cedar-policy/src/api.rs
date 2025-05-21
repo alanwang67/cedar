@@ -2715,7 +2715,7 @@ impl PolicySet {
         new_id: PolicyId,
         vals: HashMap<SlotId, EntityUid>, // ALAN: Two ways: check if an expression is a value / come up with an API that only lets you construct values
                                           // Since we can link values that are not just EntityUid we need to make this more broad, what are values
-                                          // that kare inhabitants of the schema type?
+                                          // that are inhabitants of the schema type?
                                           // ALAN: look into statically typed trait
     ) -> Result<(), PolicySetError> {
         // ALAN: Fill In

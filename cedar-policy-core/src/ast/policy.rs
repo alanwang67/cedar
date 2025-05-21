@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-use crate::ast::*;
+use crate::evaluator::evaluation_errors::TypeError;
 use crate::parser::Loc;
+use crate::{ast::*, entities::SchemaType};
 use annotation::{Annotation, Annotations};
 use educe::Educe;
 use itertools::Itertools;
@@ -263,6 +264,40 @@ impl Template {
         self.slots.is_empty()
     }
 
+    /// Ensure that for all values provided
+    /// their types correspond with the typed slots
+    /// of the template
+    pub fn check_types_correspond(
+        template: &Template,
+        values: &HashMap<SlotId, RestrictedExpr>, // We want to use
+    ) -> Result<(), LinkingError> {
+        // ALAN: We will need to create a new linking error
+        let types_match = template
+            .slots
+            .iter()
+            .filter(|slot| {
+                if let Some(x) = slot.id.ret_type_if_typed_slot() {
+                    if let Some(e) = values.get(&slot.id) {
+                        match crate::entities::conformance::typecheck_restricted_expr_against_schematype(e.as_borrowed(), &x, crate::extensions::Extensions::all_available()) {
+                            Ok(_) => false,
+                            Err(_) => true
+                        }
+                    } else {
+                        true
+                    }
+                } else {
+                    true
+                }}).collect::<Vec<_>>();
+
+        if types_match.is_empty() {
+            Ok(())
+        } else {
+            Err(LinkingError::from_type(
+                types_match.into_iter().map(|slot| slot.id.clone()),
+            ))
+        }
+    }
+
     /// Ensure that every slot in the template is bound by values,
     /// and that no extra values are bound in values
     /// This upholds invariant (values total map)
@@ -294,28 +329,7 @@ impl Template {
             })
             .collect::<Vec<_>>();
 
-        let types_match = template
-            .slots
-            .iter()
-            .filter(|slot| {
-                if let Some(x) = slot.id.ret_type_if_typed_slot() {
-                    match x {
-                        crate::entities::SchemaType::Entity { ty } => {
-                            let v = values.get(&slot.id);
-                            match v {
-                                Some(e) => e.entity_type().eq(&ty), //ALAN: double check if we can do eq on types?
-                                None => true,
-                            }
-                        }
-                        _ => true,
-                    }
-                } else {
-                    false
-                }
-            })
-            .collect::<Vec<_>>();
-
-        if unbound.is_empty() && extra.is_empty() && types_match.is_empty() {
+        if unbound.is_empty() && extra.is_empty() {
             Ok(())
         } else {
             Err(LinkingError::from_unbound_and_extras(
@@ -384,6 +398,14 @@ pub enum LinkingError {
         extra_values: Vec<SlotId>,
     },
 
+    /// Types in generalized template don't correspond
+    /// to provided types
+    #[error("types of values provided don't correspond with types in generalized templates")]
+    TypeError {
+        /// Slots with value of incorrect type provides
+        values: Vec<SlotId>,
+    },
+
     /// The attempted linking failed as the template did not exist.
     #[error("failed to find a template with id `{id}`")]
     NoSuchTemplate {
@@ -407,6 +429,12 @@ impl LinkingError {
         Self::ArityError {
             unbound_values: unbound.collect(),
             extra_values: extra.collect(),
+        }
+    }
+
+    fn from_type(values: impl Iterator<Item = SlotId>) -> Self {
+        Self::TypeError {
+            values: values.collect(),
         }
     }
 }

@@ -240,6 +240,8 @@ pub fn typecheck_value_against_schematype(
 /// function liberally treats unknowns as implementing any schema type.  If the
 /// typecheck passes, return `Ok(())`.  If the typecheck fails, return an
 /// appropriate `Err`.
+/// ALAN: We might want to use this to check our schema type
+/// Though I'm not sure since all types annotated on our template should be valid
 pub fn typecheck_restricted_expr_against_schematype(
     expr: BorrowedRestrictedExpr<'_>,
     expected_ty: &SchemaType,
