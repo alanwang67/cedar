@@ -2650,6 +2650,7 @@ impl PolicySet {
     ///   3) `template_id` does not correspond to a template. Either the id is
     ///      not in the policy set, or it is in the policy set but is either a
     ///      linked or static policy rather than a template
+    /// ALAN: this is where we link templates
     #[allow(clippy::needless_pass_by_value)]
     pub fn link(
         &mut self,
@@ -2703,6 +2704,22 @@ impl PolicySet {
                 lossless: linked_lossless,
             },
         );
+        Ok(())
+    }
+
+    /// Attempts to link values for generalized templates
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn link_generalized_templates(
+        &mut self,
+        template_id: PolicyId,
+        new_id: PolicyId,
+        vals: HashMap<SlotId, EntityUid>, // ALAN: Two ways: check if an expression is a value / come up with an API that only lets you construct values
+                                          // Since we can link values that are not just EntityUid we need to make this more broad, what are values
+                                          // that kare inhabitants of the schema type?
+                                          // ALAN: look into statically typed trait
+    ) -> Result<(), PolicySetError> {
+        // ALAN: Fill In
+        // ALAN: potentially look into the policy set function with the same name
         Ok(())
     }
 
@@ -2965,6 +2982,8 @@ impl Template {
     }
 
     /// Iterate over the open slots in this `Template`
+    /// ALAN: We potentially will have to change this s.t. it will only return principal and resource slots
+    /// to be backwards compatible
     pub fn slots(&self) -> impl Iterator<Item = &SlotId> {
         self.ast.slots().map(|slot| SlotId::ref_cast(&slot.id))
     }

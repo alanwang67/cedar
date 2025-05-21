@@ -23,6 +23,7 @@ use crate::{
     parser::{err::ParseErrors, Loc},
 };
 use educe::Educe;
+use itertools::Itertools;
 use miette::Diagnostic;
 use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
@@ -285,6 +286,8 @@ impl<T> Expr<T> {
     }
 
     /// Iterate over all of the principal & resource slots in this policy AST
+    /// Filters duplicate slots for generalized templates
+    /// ALAN: Write a test for slot equality
     pub fn slots(&self) -> impl Iterator<Item = Slot> + '_ {
         self.subexpressions()
             .filter_map(|exp| match &exp.expr_kind {
@@ -296,9 +299,11 @@ impl<T> Expr<T> {
                 }
                 _ => None,
             })
+            .unique()
     }
 
     /// Iterate over all of the typed slots in this policy AST
+    /// Filters duplicate slots for generalized templates
     pub fn typed_slots(&self) -> impl Iterator<Item = Slot> + '_ {
         self.subexpressions()
             .filter_map(|exp| match &exp.expr_kind {
@@ -308,6 +313,7 @@ impl<T> Expr<T> {
                 }),
                 _ => None,
             })
+            .unique()
     }
 
     /// Determine if the expression is projectable under partial evaluation
@@ -1600,9 +1606,15 @@ mod test {
     use cool_asserts::assert_matches;
     use itertools::Itertools;
     use smol_str::ToSmolStr;
-    use std::collections::{hash_map::DefaultHasher, HashSet};
+    use std::{
+        collections::{hash_map::DefaultHasher, HashSet},
+        str::FromStr,
+    };
 
-    use crate::expr_builder::ExprBuilder as _;
+    use crate::{
+        entities::{self, Schema, SchemaType},
+        expr_builder::ExprBuilder as _,
+    };
 
     use super::*;
 
@@ -1712,6 +1724,18 @@ mod test {
                 ()
             ),
         );
+    }
+
+    #[test]
+    fn typed_slots_unique() {
+        let name = Name::from_str("typed_slot").unwrap();
+        let schematype = SchemaType::Bool;
+
+        let typed_slot = Expr::slot(SlotId::typed_slot(name, schematype));
+
+        let e = Expr::is_eq(typed_slot.clone(), typed_slot.clone());
+
+        assert_eq!(e.typed_slots().count(), 1)
     }
 
     #[test]

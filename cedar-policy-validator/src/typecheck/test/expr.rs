@@ -21,6 +21,7 @@ use std::{str::FromStr, vec};
 
 use cedar_policy_core::{
     ast::{BinaryOp, EntityType, EntityUID, Expr, Pattern, PatternElem, SlotId, Var},
+    entities::SchemaType,
     extensions::Extensions,
 };
 use itertools::Itertools;
@@ -80,6 +81,7 @@ fn typed_slot_in_add_typechecks() {
         cedar_policy_core::ast::Name::from_str("typed_slot").unwrap(),
         cedar_policy_core::entities::SchemaType::Long,
     ));
+
     let expr = &Expr::add(typed_slot, Expr::val(1));
 
     assert_typechecks_empty_schema(&expr, &Type::primitive_long());
@@ -109,7 +111,8 @@ fn typed_slot_with_attribute_access_typechecks() {
                         "type": "Record",
                         "additionalAttributes": false,
                         "attributes": {
-                            "name": { "type": "String", "required": true}
+                            "name": { "type": "String", "required": true},
+                            "number": { "type": "Long", "required": true}
                         }
                     }
                 },
@@ -159,9 +162,8 @@ fn typed_slot_with_attribute_access_typechecks() {
         },
     ));
 
-    // assert_typechecks_for_mode(schema.clone(), &Expr::get_attr(typed_slot, SmolStr::new(&"age")), &&Type::primitive_long(), ValidationMode::Strict);
     let expr = &Expr::is_eq(
-        Expr::get_attr(typed_slot, SmolStr::new(&"age")),
+        Expr::get_attr(typed_slot.clone(), SmolStr::new(&"age")),
         Expr::val(1),
     );
 

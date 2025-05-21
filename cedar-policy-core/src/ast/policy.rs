@@ -89,8 +89,7 @@ pub struct Template {
     /// This is maintained by the only public constructors: `new()`, `new_shared()`, and `link_static_policy()`
     ///
     /// Note that `slots` may be empty, in which case this `Template` represents a static policy
-    slots: Vec<Slot>,
-    typed_slots: Vec<Slot>,
+    slots: Vec<Slot>, // ALAN: Slots also include typed slots
 }
 
 impl From<Template> for TemplateBody {
@@ -106,6 +105,9 @@ impl Template {
     pub fn check_invariant(&self) {
         #[cfg(debug_assertions)]
         {
+            // ALAN: This is just checking that when we link with a template
+            // the values we supply for slots must be an exact match with the
+            // slots in our template
             for slot in self.body.condition().slots() {
                 assert!(self.slots.contains(&slot));
             }
@@ -211,7 +213,6 @@ impl Template {
         Template {
             body: self.body.new_id(id),
             slots: self.slots.clone(),
-            typed_slots: self.typed_slots.clone(),
         }
     }
 
@@ -265,6 +266,8 @@ impl Template {
     /// Ensure that every slot in the template is bound by values,
     /// and that no extra values are bound in values
     /// This upholds invariant (values total map)
+    /// ALAN: We will need to extend this s.t. the values can
+    /// contain other things besides EntityUID
     pub fn check_binding(
         template: &Template,
         values: &HashMap<SlotId, EntityUID>,
@@ -291,7 +294,28 @@ impl Template {
             })
             .collect::<Vec<_>>();
 
-        if unbound.is_empty() && extra.is_empty() {
+        let types_match = template
+            .slots
+            .iter()
+            .filter(|slot| {
+                if let Some(x) = slot.id.ret_type_if_typed_slot() {
+                    match x {
+                        crate::entities::SchemaType::Entity { ty } => {
+                            let v = values.get(&slot.id);
+                            match v {
+                                Some(e) => e.entity_type().eq(&ty), //ALAN: double check if we can do eq on types?
+                                None => true,
+                            }
+                        }
+                        _ => true,
+                    }
+                } else {
+                    false
+                }
+            })
+            .collect::<Vec<_>>();
+
+        if unbound.is_empty() && extra.is_empty() && types_match.is_empty() {
             Ok(())
         } else {
             Err(LinkingError::from_unbound_and_extras(
@@ -304,6 +328,7 @@ impl Template {
     /// Attempt to create a template-linked policy from this template.
     /// This will fail if values for all open slots are not given.
     /// `new_instance_id` is the `PolicyId` for the created template-linked policy.
+    /// ALAN: This will work for generalized templates but
     pub fn link(
         template: Arc<Template>,
         new_id: PolicyID,
@@ -324,7 +349,6 @@ impl Template {
         let t = Arc::new(Self {
             body,
             slots: vec![],
-            typed_slots: vec![],
         });
         t.check_invariant();
         let p = Policy::new(Arc::clone(&t), None, HashMap::new());
@@ -337,12 +361,7 @@ impl From<TemplateBody> for Template {
         // INVARIANT: (slot cache correctness)
         // Pull all the slots out of the template body's condition.
         let slots = body.condition().slots().collect::<Vec<_>>();
-        let typed_slots = body.condition().typed_slots().collect::<Vec<_>>();
-        Self {
-            body,
-            slots,
-            typed_slots,
-        }
+        Self { body, slots }
     }
 }
 
