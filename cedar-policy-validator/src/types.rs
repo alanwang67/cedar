@@ -144,9 +144,9 @@ impl Type {
                     attrs: schema.get_entity_type(&ty).unwrap().attributes.clone(),
                 }))
             },
-            // CoreSchemaType::Entity { ty } => {  // ALAN: this is the case where it is not an action entity
-
-            // }
+            CoreSchemaType::Entity { ty } => {  // ALAN: this is the case where it is not an action entity
+                Ok(Type::EntityOrRecord(EntityRecordKind::Entity(EntityLUB::single_entity(ty))))
+            }
             // CoreSchemaType::Record { attrs, open_attrs } =>
             CoreSchemaType::Extension { name } => Ok(Type::ExtensionType { name }), 
             _ => Err("Conversion for type not implemented yet".into()),
