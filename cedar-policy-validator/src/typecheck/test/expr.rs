@@ -64,6 +64,88 @@ fn slot_typechecks() {
 }
 
 #[test]
+fn generalized_slot_with_attribute_access_typechecks() {
+    let schema: json_schema::NamespaceDefinition<RawName> = serde_json::from_str(
+        r#"
+        {
+            "entityTypes": {
+                "User": {
+                    "shape": {
+                        "type": "Record",
+                        "additionalAttributes": false,
+                        "attributes": {
+                            "name": { "type": "String", "required": true},
+                            "age": { "type": "Long", "required": true},
+                            "favorite": { "type": "Entity", "name": "Photo", "required": true}
+                        }
+                    }
+                },
+                "Photo": {
+                    "shape": {
+                        "type": "Record",
+                        "additionalAttributes": false,
+                        "attributes": {
+                            "file_type": { "type": "String", "required": true},
+                            "owner": { "type": "Entity", "name": "User", "required": true}
+                        }
+                    }
+                }
+            },
+            "actions": {
+                "view_photo": {
+                    "memberOf": [],
+                    "appliesTo": {
+                        "principalTypes": ["User"],
+                        "resourceTypes": ["Photo"]
+                    }
+                }
+            }
+        }"#,
+    )
+    .expect("Expected valid schema");
+    let generalized_slot = Expr::slot(SlotId::generalized_slot(
+        cedar_policy_core::ast::Name::from_str("generalized_slot").unwrap(),
+        cedar_policy_core::entities::SchemaType::Entity {
+            ty: cedar_policy_core::ast::EntityType::from_normalized_str(&"User").unwrap(),
+        },
+    ));
+
+    let expr = &Expr::is_eq(
+        Expr::get_attr(generalized_slot, SmolStr::new(&"age")),
+        Expr::val(1),
+    );
+
+    assert_typechecks_for_mode(
+        schema.clone(),
+        &expr,
+        &Type::primitive_boolean(),
+        ValidationMode::Strict,
+    );
+}
+
+#[test]
+fn generalized_slot_typechecks() {
+    assert_typechecks_empty_schema(
+        &Expr::slot(SlotId::generalized_slot(
+            cedar_policy_core::ast::Name::from_str("generalized_slot").unwrap(),
+            cedar_policy_core::entities::SchemaType::Bool,
+        )),
+        &&Type::primitive_boolean(),
+    );
+}
+
+#[test]
+fn generalized_slot_add_typechecks() {
+    let generalized_slot = Expr::slot(SlotId::generalized_slot(
+        cedar_policy_core::ast::Name::from_str("generalized_slot").unwrap(),
+        cedar_policy_core::entities::SchemaType::Long,
+    ));
+    let expr = &Expr::add(generalized_slot, Expr::val(1));
+
+    assert_typechecks_empty_schema(&expr, &Type::primitive_long());
+}
+
+#[test]
 fn slot_in_typechecks() {
     let etype = json_schema::StandardEntityType {
         member_of_types: vec![],

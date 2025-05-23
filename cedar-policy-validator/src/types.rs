@@ -666,6 +666,67 @@ impl Type {
         }
     }
 
+    /// Given a schema type and a schema returns a type compatible with the
+    /// type checker
+    pub(crate) fn get_type_from_schema_type(
+        t: CoreSchemaType,
+        schema: &ValidatorSchema,
+    ) -> Result<Type, String> {
+        // Chore: Return better errors
+        match t {
+            CoreSchemaType::Bool => Ok(Type::primitive_boolean()),
+            CoreSchemaType::Long => Ok(Type::primitive_long()),
+            CoreSchemaType::String => Ok(Type::primitive_string()),
+            CoreSchemaType::Set { element_ty } => Ok(Type::set(Type::get_type_from_schema_type(
+                *element_ty,
+                schema,
+            )?)),
+            CoreSchemaType::EmptySet => Ok(Type::Set { element_type: None }),
+            CoreSchemaType::Entity { ty } if ty.is_action() => {
+                // We use the schema here to look up the entity's attributes
+                if let Some(s) = schema.get_entity_type(&ty) {
+                    Ok(Type::EntityOrRecord(EntityRecordKind::ActionEntity {
+                        name: ty.clone(),
+                        attrs: s.attributes.clone(),
+                    }))
+                } else {
+                    Err("Action entity not found in associated ValidatorSchema".into())
+                }
+            }
+            CoreSchemaType::Entity { ty } => Ok(Type::EntityOrRecord(EntityRecordKind::Entity(
+                EntityLUB::single_entity(ty),
+            ))),
+            CoreSchemaType::Record { attrs, open_attrs } => {
+                let open_attributes = match open_attrs {
+                    true => OpenTag::OpenAttributes,
+                    false => OpenTag::ClosedAttributes,
+                };
+
+                let attrs = attrs
+                    .into_iter()
+                    .map(|(k, v)| {
+                        let t = Type::get_type_from_schema_type(v.schema_type().clone(), schema)
+                            .unwrap();
+
+                        Ok((
+                            k,
+                            AttributeType {
+                                attr_type: t,
+                                is_required: v.is_required(),
+                            },
+                        ))
+                    })
+                    .collect::<Result<_, String>>()?;
+
+                Ok(Type::EntityOrRecord(EntityRecordKind::Record {
+                    attrs: Attributes { attrs },
+                    open_attributes,
+                }))
+            }
+            CoreSchemaType::Extension { name } => Ok(Type::ExtensionType { name }),
+        }
+    }
+
     /// Returns `true` when the type is a type of an entity
     #[cfg(feature = "entity-manifest")]
     pub(crate) fn is_entity_type(&self) -> bool {

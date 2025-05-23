@@ -15,6 +15,7 @@
  */
 
 use super::{id::Id, PrincipalOrResource, UnreservedId};
+use crate::entities::SchemaType;
 use educe::Educe;
 use itertools::Itertools;
 use miette::Diagnostic;
@@ -287,7 +288,7 @@ impl<'de> Deserialize<'de> for InternalName {
 /// Clone is O(1).
 // This simply wraps a separate enum -- currently [`ValidSlotId`] -- in case we
 // want to generalize later
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct SlotId(pub(crate) ValidSlotId);
 
@@ -302,6 +303,11 @@ impl SlotId {
         Self(ValidSlotId::Resource)
     }
 
+    /// Creates a generalized slot
+    pub fn generalized_slot(n: Name, t: SchemaType) -> Self {
+        Self(ValidSlotId::GeneralizedSlot(n, t))
+    }
+
     /// Check if a slot represents a principal
     pub fn is_principal(&self) -> bool {
         matches!(self, Self(ValidSlotId::Principal))
@@ -310,6 +316,19 @@ impl SlotId {
     /// Check if a slot represents a resource
     pub fn is_resource(&self) -> bool {
         matches!(self, Self(ValidSlotId::Resource))
+    }
+
+    /// Check if a slot represents a generalized slot
+    pub fn is_generalized(&self) -> bool {
+        matches!(self, Self(ValidSlotId::GeneralizedSlot(_, _)))
+    }
+
+    /// If the slot has a type return it
+    pub fn return_type(&self) -> Option<SchemaType> {
+        match &self {
+            Self(ValidSlotId::GeneralizedSlot(_, t)) => Some(t.clone()),
+            _ => None,
+        }
     }
 }
 
@@ -329,12 +348,13 @@ impl std::fmt::Display for SlotId {
 }
 
 /// Two possible variants for Slots
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub(crate) enum ValidSlotId {
     #[serde(rename = "?principal")]
     Principal,
     #[serde(rename = "?resource")]
     Resource,
+    GeneralizedSlot(Name, SchemaType),
 }
 
 impl std::fmt::Display for ValidSlotId {
@@ -342,6 +362,7 @@ impl std::fmt::Display for ValidSlotId {
         let s = match self {
             ValidSlotId::Principal => "principal",
             ValidSlotId::Resource => "resource",
+            ValidSlotId::GeneralizedSlot(n, _) => &n.to_smolstr(),
         };
         write!(f, "?{s}")
     }

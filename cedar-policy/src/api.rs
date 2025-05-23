@@ -2683,6 +2683,7 @@ impl PolicySet {
             template_id.into(),
             new_id.clone().into(),
             unwrapped_vals.clone(),
+            HashMap::new(),
         )?;
 
         // PANIC SAFETY: `lossless.link()` will not fail after `ast.link()` succeeds
@@ -2690,7 +2691,72 @@ impl PolicySet {
         let linked_lossless = template
             .lossless
             .clone()
-            .link(unwrapped_vals.iter().map(|(k, v)| (*k, v)))
+            .link(unwrapped_vals.iter().map(|(k, v)| (k.clone(), v)))
+            // The only error case for `lossless.link()` is a template with
+            // slots which are not filled by the provided values. `ast.link()`
+            // will have already errored if there are any unfilled slots in the
+            // template.
+            .expect("ast.link() didn't fail above, so this shouldn't fail");
+        self.policies.insert(
+            new_id,
+            Policy {
+                ast: linked_ast.clone(),
+                lossless: linked_lossless,
+            },
+        );
+        Ok(())
+    }
+
+    /// Allows for linking with generalized templates
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn generalized_link(
+        &mut self,
+        template_id: PolicyId,
+        new_id: PolicyId,
+        vals: HashMap<SlotId, EntityUid>,
+        generalized_vals: HashMap<SlotId, RestrictedExpr>,
+    ) -> Result<(), PolicySetError> {
+        let unwrapped_vals: HashMap<ast::SlotId, ast::EntityUID> = vals
+            .into_iter()
+            .map(|(key, value)| (key.into(), value.into()))
+            .collect();
+
+        let unwrapped_generalized_vals: HashMap<ast::SlotId, ast::RestrictedExpr> =
+            generalized_vals
+                .into_iter()
+                .map(|(key, value)| (key.into(), value.into()))
+                .collect();
+
+        // Try to get the template with the id we're linking from.  We do this
+        // _before_ calling `self.ast.link` because `link` mutates the policy
+        // set by creating a new link entry in a hashmap. This happens even when
+        // trying to link a static policy, which we want to error on here.
+        let Some(template) = self.templates.get(&template_id) else {
+            return Err(if self.policies.contains_key(&template_id) {
+                policy_set_errors::ExpectedTemplate::new().into()
+            } else {
+                policy_set_errors::LinkingError {
+                    inner: ast::LinkingError::NoSuchTemplate {
+                        id: template_id.into(),
+                    },
+                }
+                .into()
+            });
+        };
+
+        let linked_ast = self.ast.link(
+            template_id.into(),
+            new_id.clone().into(),
+            unwrapped_vals.clone(),
+            unwrapped_generalized_vals.clone(),
+        )?;
+
+        // PANIC SAFETY: `lossless.link()` will not fail after `ast.link()` succeeds
+        #[allow(clippy::expect_used)]
+        let linked_lossless = template
+            .lossless
+            .clone()
+            .link(unwrapped_vals.iter().map(|(k, v)| (k.clone(), v)))
             // The only error case for `lossless.link()` is a template with
             // slots which are not filled by the provided values. `ast.link()`
             // will have already errored if there are any unfilled slots in the
@@ -2762,7 +2828,7 @@ fn is_static_or_link(
                 .ast
                 .env()
                 .iter()
-                .map(|(id, euid)| (*id, euid.clone()))
+                .map(|(id, euid)| (id.clone(), euid.clone()))
                 .collect();
             Ok(Either::Right(TemplateLink {
                 new_id: id.into(),
@@ -3267,6 +3333,7 @@ impl Policy {
 
     /// Get the values this `Template` is linked to, expressed as a map from `SlotId` to `EntityUid`.
     /// If this is a static policy, this will return `None`.
+    /// Chore: change this to only be principal & resource slots
     pub fn template_links(&self) -> Option<HashMap<SlotId, EntityUid>> {
         if self.is_static() {
             None
@@ -3275,7 +3342,7 @@ impl Policy {
                 .ast
                 .env()
                 .iter()
-                .map(|(key, value)| ((*key).into(), value.clone().into()))
+                .map(|(key, value)| ((key.clone()).into(), value.clone().into()))
                 .collect();
             Some(wrapped_vals)
         }
@@ -3704,7 +3771,7 @@ impl LosslessPolicy {
                 if slots.is_empty() {
                     Ok(est)
                 } else {
-                    let unwrapped_vals = slots.iter().map(|(k, v)| (*k, v.into())).collect();
+                    let unwrapped_vals = slots.iter().map(|(k, v)| (k.clone(), v.into())).collect();
                     Ok(est.link(&unwrapped_vals)?)
                 }
             }

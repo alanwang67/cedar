@@ -15,8 +15,8 @@
  */
 
 use super::{
-    EntityUID, LinkingError, LiteralPolicy, Policy, PolicyID, ReificationError, SlotId,
-    StaticPolicy, Template,
+    EntityUID, LinkingError, LiteralPolicy, Policy, PolicyID, ReificationError, RestrictedExpr,
+    SlotId, StaticPolicy, Template,
 };
 use itertools::Itertools;
 use miette::Diagnostic;
@@ -504,13 +504,14 @@ impl PolicySet {
         template_id: PolicyID,
         new_id: PolicyID,
         values: HashMap<SlotId, EntityUID>,
+        generalized_values: HashMap<SlotId, RestrictedExpr>,
     ) -> Result<&Policy, LinkingError> {
         let t =
             self.get_template_arc(&template_id)
                 .ok_or_else(|| LinkingError::NoSuchTemplate {
                     id: template_id.clone(),
                 })?;
-        let r = Template::link(t, new_id.clone(), values)?;
+        let r = Template::link(t, new_id.clone(), values, generalized_values)?;
 
         // Both maps must not contain the `new_id`
         match (
@@ -667,7 +668,12 @@ mod test {
             r#"Test::"test""#.parse().expect("Failed to parse"),
         )]);
 
-        let r = pset.link(PolicyID::from_string("t"), PolicyID::from_string("id"), env);
+        let r = pset.link(
+            PolicyID::from_string("t"),
+            PolicyID::from_string("id"),
+            env,
+            HashMap::new(),
+        );
 
         match r {
             Ok(_) => panic!("Should have failed due to conflict"),
@@ -704,8 +710,13 @@ mod test {
             r#"Test::"test1""#.parse().expect("Failed to parse"),
         )]);
 
-        let p1 = Template::link(Arc::clone(&template), PolicyID::from_string("link"), env1)
-            .expect("Failed to link");
+        let p1 = Template::link(
+            Arc::clone(&template),
+            PolicyID::from_string("link"),
+            env1,
+            HashMap::new(),
+        )
+        .expect("Failed to link");
         pset.add(p1).expect(
             "Adding link should succeed, even though the template wasn't previously in the pset",
         );
@@ -723,6 +734,7 @@ mod test {
             Arc::clone(&template),
             PolicyID::from_string("link"),
             env2.clone(),
+            HashMap::new(),
         )
         .expect("Failed to link");
         match pset.add(p2) {
@@ -730,8 +742,13 @@ mod test {
             Err(PolicySetError::Occupied { id }) => assert_eq!(id, PolicyID::from_string("link")),
         }
 
-        let p3 = Template::link(Arc::clone(&template), PolicyID::from_string("link2"), env2)
-            .expect("Failed to link");
+        let p3 = Template::link(
+            Arc::clone(&template),
+            PolicyID::from_string("link2"),
+            env2,
+            HashMap::new(),
+        )
+        .expect("Failed to link");
         pset.add(p3).expect(
             "Adding link should succeed, even though the template already existed in the pset",
         );
@@ -752,6 +769,7 @@ mod test {
             Arc::clone(&template2),
             PolicyID::from_string("unique3"),
             env3,
+            HashMap::new(),
         )
         .expect("Failed to link");
         match pset.add(p4) {
@@ -906,6 +924,7 @@ mod test {
             PolicyID::from_string("template"),
             PolicyID::from_string("id"),
             HashMap::from([(SlotId::principal(), EntityUID::with_eid("eid"))]),
+            HashMap::new(),
         )
         .expect("Linking failed!");
         assert_eq!(set.static_policies().count(), 1);
@@ -929,7 +948,7 @@ mod test {
 
         let mut s = PolicySet::new();
         let e = s
-            .link(tid.clone(), lid.clone(), HashMap::new())
+            .link(tid.clone(), lid.clone(), HashMap::new(), HashMap::new())
             .expect_err("Should fail");
 
         match e {
@@ -938,7 +957,8 @@ mod test {
         };
 
         s.add_template(t).unwrap();
-        s.link(tid, lid, HashMap::new()).expect("Should succeed");
+        s.link(tid, lid, HashMap::new(), HashMap::new())
+            .expect("Should succeed");
     }
 
     #[test]
@@ -963,7 +983,8 @@ mod test {
         vals.insert(SlotId::principal(), EntityUID::with_eid("p"));
         vals.insert(SlotId::resource(), EntityUID::with_eid("a"));
 
-        s.link(tid.clone(), lid.clone(), vals).expect("Should link");
+        s.link(tid.clone(), lid.clone(), vals, HashMap::new())
+            .expect("Should link");
 
         let v: Vec<_> = s.policies().collect();
 
@@ -1025,7 +1046,7 @@ mod test {
         let mut v = HashMap::new();
         let entity = EntityUID::with_eid("eid");
         v.insert(SlotId::principal(), entity.clone());
-        s.link(template_id.clone(), link_id.clone(), v)
+        s.link(template_id.clone(), link_id.clone(), v, HashMap::new())
             .expect("Linking failed!");
 
         let link = s.get(&link_id).expect("Link should exist");
@@ -1109,6 +1130,7 @@ mod test {
             tid2.clone(),
             id3.clone(),
             HashMap::from([(SlotId::principal(), EntityUID::with_eid("example"))]),
+            HashMap::new(),
         );
         r.expect("Linking failed");
 

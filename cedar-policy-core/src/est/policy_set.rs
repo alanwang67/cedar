@@ -56,8 +56,11 @@ impl PolicySet {
             .filter_map(|link| {
                 if &link.new_id == id {
                     self.get_template(&link.template_id).and_then(|template| {
-                        let unwrapped_est_vals: HashMap<SlotId, EntityUidJson> =
-                            link.values.iter().map(|(k, v)| (*k, v.into())).collect();
+                        let unwrapped_est_vals: HashMap<SlotId, EntityUidJson> = link
+                            .values
+                            .iter()
+                            .map(|(k, v)| (k.clone(), v.into()))
+                            .collect();
                         template.link(&unwrapped_est_vals).ok()
                     })
                 } else {
@@ -91,6 +94,7 @@ pub struct TemplateLink {
     /// Mapping between slots and entity uids
     #[serde_as(as = "serde_with::MapPreventDuplicates<_,EntityUidJson<TemplateLinkContext>>")]
     pub values: HashMap<SlotId, EntityUID>,
+    // pub generalized_values: HashMap<SlotId, RestrictedExpr>,
 }
 
 /// Statically set the deserialization error context to be deserialization of a template link
@@ -124,7 +128,7 @@ impl TryFrom<PolicySet> for ast::PolicySet {
             values,
         } in value.template_links
         {
-            ast_pset.link(template_id, new_id, values)?;
+            ast_pset.link(template_id, new_id, values, HashMap::new())?;
         }
 
         Ok(ast_pset)
