@@ -207,6 +207,7 @@ impl Node<Option<cst::Policies>> {
     }
 }
 
+// chore: we will likely have to edit the bulk of the work here
 impl Node<Option<cst::Policy>> {
     /// Convert `cst::Policy` to `ast::Template`. Works for static policies as
     /// well, which will become templates with 0 slots
@@ -3654,6 +3655,40 @@ mod tests {
             .exactly_one_underline("?principal")
             .build(),
         );
+    }
+
+    #[test]
+    fn generalized_templates_1() { 
+        let src = r#"
+            template (?slot: datetime, ?slot1: temp) => 
+            permit(principal,action,resource);
+        "#;
+        text_to_cst::parse_policy(src)
+            .expect("parse_error")
+            .to_template(ast::PolicyID::from_string("i0"))
+            .unwrap_or_else(|errs| {
+                panic!(
+                    "Failed to create a policy template: {:?}",
+                    miette::Report::new(errs)
+                );
+            });
+    }
+
+    #[test]
+    fn generalized_templates_2() { 
+        let src = r#"
+            template(?principal: datetime, ?action: temp) => 
+            permit(principal,action,resource);
+        "#;
+        text_to_cst::parse_policy(src)
+            .expect("parse_error")
+            .to_template(ast::PolicyID::from_string("i0"))
+            .unwrap_or_else(|errs| {
+                panic!(
+                    "Failed to create a policy template: {:?}",
+                    miette::Report::new(errs)
+                );
+            });
     }
 
     #[test]

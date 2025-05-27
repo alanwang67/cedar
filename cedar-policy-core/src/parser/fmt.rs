@@ -75,6 +75,9 @@ impl fmt::Display for Policy {
                 write!(f, "{} ", View(anno))?;
             }
         }
+
+        // Chore: parse template annotation here 
+
         // main policy body
         if f.alternate() {
             write!(f, "{:#}(", View(&policy.effect))?;
@@ -454,6 +457,15 @@ impl fmt::Display for Str {
         }
     }
 }
+
+// Chore: Implement these 2 display functions
+// impl fmt::Display for TypeAnnotation { 
+
+// }
+
+// impl fmt::Display for TemplateAnnotations {
+
+// }
 
 impl std::fmt::Display for Slot {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
