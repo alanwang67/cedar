@@ -34,6 +34,22 @@ pub struct Annotation {
     pub value: Option<Node<Str>>,
 }
 
+/// Type annotations for generalized templates
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeAnnotation {
+    /// name
+    pub slot: Node<Slot>,
+    /// type
+    pub stype: Node<Ident>,
+}
+
+/// Template annotation for generalized templates
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TemplateAnnotations {
+    /// types for the slots
+    pub values: Vec<Node<TypeAnnotation>>,
+}
+
 /// Literal strings
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Str {
@@ -52,6 +68,8 @@ pub enum Str {
 pub struct PolicyImpl {
     /// Annotations
     pub annotations: Vec<Node<Annotation>>,
+    /// Template Annotations
+    pub template_annotations: Option<Node<TemplateAnnotations>>,
     /// policy effect
     pub effect: Node<Ident>,
     /// Variables

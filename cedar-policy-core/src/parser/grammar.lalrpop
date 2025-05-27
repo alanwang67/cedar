@@ -72,6 +72,10 @@ match {
     r"[0-9]+" => NUMBER,
     r#""(\\.|[^"\\])*""# => STRINGLIT,
 
+    // typed slots
+    "template",
+    "=>",
+
     // other tokens used (or not currently used, in the case of e.g. % and =)
     "@",
     ".", ",", ";", ":", "::",
@@ -96,6 +100,16 @@ pub Policies: Node<Option<cst::Policies>> = {
     <l:@L> <ps:Policy*> <r:@R> => Node::with_source_loc(Some(cst::Policies(ps)), Loc::new(l..r, Arc::clone(src))),
 }
 
+// TypeAnnotation := {name ':' type}
+TypeAnnotation: Node<Option<cst::TypeAnnotation>> = {
+    <l:@L> <slot: Slot> ":" <stype: Ident> <r:@R> => Node::with_source_loc(Some(cst::TypeAnnotation{slot,stype}), Loc::new(l..r, Arc::clone(src)))
+}
+
+// TemplateAnnotation := {'template' '(' ( TypeAnnotation { ',' TypeAnnotation } ) ')' '=>'}
+TemplateAnnotations: Node<Option<cst::TemplateAnnotations>> = {
+    <l:@L> "template" "(" <values: Comma<TypeAnnotation>> ")" "=>" <r:@R> => Node::with_source_loc(Some(cst::TemplateAnnotations{ values }), Loc::new(l..r, Arc::clone(src)))
+}
+
 // Annotations := {'@' Ident '(' String ')'}
 Annotation: Node<Option<cst::Annotation>> = {
     <l:@L> "@" <key:AnyIdent> <value: ("(" <Str> ")")?> <r:@R> => Node::with_source_loc(Some(cst::Annotation{key,value}), Loc::new(l..r, Arc::clone(src)))
@@ -105,12 +119,13 @@ Annotation: Node<Option<cst::Annotation>> = {
 pub Policy: Node<Option<cst::Policy>> = {
     <l:@L>
     <annotations:Annotation*>
+    <template_annotations: TemplateAnnotations?>
     <effect:AnyIdent>
     "(" <variables: Comma<VariableDef>> ")"
     <conds:Cond*>
     ";"
     <r:@R>
-    => Node::with_source_loc(Some(cst::Policy::Policy(cst::PolicyImpl{ annotations,effect,variables,conds })), Loc::new(l..r, Arc::clone(src))),
+    => Node::with_source_loc(Some(cst::Policy::Policy(cst::PolicyImpl{ annotations,template_annotations,effect,variables,conds })), Loc::new(l..r, Arc::clone(src))),
     <l:@L> <err:!> ";" <r:@R> => {
         // Tolerant AST creates a valid CST node representing the unparsable policy
         #[cfg(feature = "tolerant-ast")]
