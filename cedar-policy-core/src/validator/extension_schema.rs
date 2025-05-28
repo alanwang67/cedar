@@ -16,8 +16,8 @@
 
 use std::collections::BTreeSet;
 
-use crate::validator::types::Type;
 use crate::ast::{Expr, Name};
+use crate::validator::types::Type;
 
 /// Type information for a Cedar extension.
 pub struct ExtensionSchema {

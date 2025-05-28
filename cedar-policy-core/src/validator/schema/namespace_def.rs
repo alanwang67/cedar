@@ -129,7 +129,8 @@ impl ValidatorNamespaceDef<ConditionalName, ConditionalName> {
         namespace_def: json_schema::NamespaceDefinition<RawName>,
         action_behavior: ActionBehavior,
         extensions: &Extensions<'_>,
-    ) -> crate::validator::err::Result<ValidatorNamespaceDef<ConditionalName, ConditionalName>> {
+    ) -> crate::validator::err::Result<ValidatorNamespaceDef<ConditionalName, ConditionalName>>
+    {
         // Return early with an error if actions cannot be in groups or have
         // attributes, but the schema contains action groups or attributes.
         Self::check_action_behavior(&namespace_def, action_behavior)?;
@@ -159,7 +160,8 @@ impl ValidatorNamespaceDef<ConditionalName, ConditionalName> {
     pub fn from_common_type_defs(
         namespace: Option<InternalName>,
         defs: HashMap<UnreservedId, json_schema::Type<ConditionalName>>,
-    ) -> crate::validator::err::Result<ValidatorNamespaceDef<ConditionalName, ConditionalName>> {
+    ) -> crate::validator::err::Result<ValidatorNamespaceDef<ConditionalName, ConditionalName>>
+    {
         let common_types = CommonTypeDefs::from_conditionalname_typedefs(defs, namespace.as_ref())?;
         Ok(ValidatorNamespaceDef {
             namespace,
@@ -924,7 +926,8 @@ impl ActionFragment<ConditionalName, ConditionalName> {
     }
 }
 
-type ResolveFunc<T> = dyn FnOnce(&HashMap<&InternalName, ValidatorType>) -> crate::validator::err::Result<T>;
+type ResolveFunc<T> =
+    dyn FnOnce(&HashMap<&InternalName, ValidatorType>) -> crate::validator::err::Result<T>;
 /// Represent a type that might be defined in terms of some common-type
 /// definitions which are not necessarily available in the current namespace.
 pub(crate) enum WithUnresolvedCommonTypeRefs<T> {
@@ -934,7 +937,8 @@ pub(crate) enum WithUnresolvedCommonTypeRefs<T> {
 
 impl<T: 'static> WithUnresolvedCommonTypeRefs<T> {
     pub fn new(
-        f: impl FnOnce(&HashMap<&InternalName, ValidatorType>) -> crate::validator::err::Result<T> + 'static,
+        f: impl FnOnce(&HashMap<&InternalName, ValidatorType>) -> crate::validator::err::Result<T>
+            + 'static,
         loc: Option<Loc>,
     ) -> Self {
         Self::WithUnresolved(Box::new(f), loc)
@@ -1022,7 +1026,8 @@ impl TryInto<ValidatorNamespaceDef<ConditionalName, ConditionalName>>
 
     fn try_into(
         self,
-    ) -> crate::validator::err::Result<ValidatorNamespaceDef<ConditionalName, ConditionalName>> {
+    ) -> crate::validator::err::Result<ValidatorNamespaceDef<ConditionalName, ConditionalName>>
+    {
         ValidatorNamespaceDef::from_namespace_definition(
             None,
             self,

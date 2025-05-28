@@ -67,9 +67,7 @@
 
 use super::{test::utils::collect_warnings, SchemaWarning, ValidatorSchema};
 use crate::extensions::Extensions;
-use crate::test_utils::{
-    expect_err, ExpectedErrorMessage, ExpectedErrorMessageBuilder,
-};
+use crate::test_utils::{expect_err, ExpectedErrorMessage, ExpectedErrorMessageBuilder};
 use cool_asserts::assert_matches;
 use serde_json::json;
 

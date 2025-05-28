@@ -27,8 +27,8 @@ use super::{
     err::{self, ParseError, ParseErrors, SchemaWarning, ToJsonSchemaErrors},
     to_json_schema::cedar_schema_to_json_schema,
 };
-use crate::validator::json_schema;
 use crate::extensions::Extensions;
+use crate::validator::json_schema;
 
 lalrpop_mod!(
     #[allow(warnings, unused, missing_docs, missing_debug_implementations)]

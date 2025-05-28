@@ -1447,7 +1447,8 @@ pub struct SchemaFragment {
         cedar_policy_core::validator::ConditionalName,
         cedar_policy_core::validator::ConditionalName,
     >,
-    lossless: cedar_policy_core::validator::json_schema::Fragment<cedar_policy_core::validator::RawName>,
+    lossless:
+        cedar_policy_core::validator::json_schema::Fragment<cedar_policy_core::validator::RawName>,
 }
 
 #[doc(hidden)] // because this converts to a private/internal type
@@ -1847,10 +1848,11 @@ impl Schema {
     pub fn from_cedarschema_file(
         file: impl std::io::Read,
     ) -> Result<(Self, impl Iterator<Item = SchemaWarning> + 'static), CedarSchemaError> {
-        let (schema, warnings) = cedar_policy_core::validator::ValidatorSchema::from_cedarschema_file(
-            file,
-            Extensions::all_available(),
-        )?;
+        let (schema, warnings) =
+            cedar_policy_core::validator::ValidatorSchema::from_cedarschema_file(
+                file,
+                Extensions::all_available(),
+            )?;
         Ok((Self(schema), warnings))
     }
 
@@ -1858,10 +1860,11 @@ impl Schema {
     pub fn from_cedarschema_str(
         src: &str,
     ) -> Result<(Self, impl Iterator<Item = SchemaWarning>), CedarSchemaError> {
-        let (schema, warnings) = cedar_policy_core::validator::ValidatorSchema::from_cedarschema_str(
-            src,
-            Extensions::all_available(),
-        )?;
+        let (schema, warnings) =
+            cedar_policy_core::validator::ValidatorSchema::from_cedarschema_str(
+                src,
+                Extensions::all_available(),
+            )?;
         Ok((Self(schema), warnings))
     }
 
@@ -2909,7 +2912,10 @@ impl From<cedar_policy_core::validator::types::RequestEnv<'_>> for RequestEnv {
 /// This function is called by [`Template::get_valid_request_envs`] and
 /// [`Policy::get_valid_request_envs`]
 fn get_valid_request_envs(ast: &ast::Template, s: &Schema) -> impl Iterator<Item = RequestEnv> {
-    let tc = Typechecker::new(&s.0, cedar_policy_core::validator::ValidationMode::default());
+    let tc = Typechecker::new(
+        &s.0,
+        cedar_policy_core::validator::ValidationMode::default(),
+    );
     tc.typecheck_by_request_env(ast)
         .into_iter()
         .filter_map(|(env, pc)| {

@@ -2388,12 +2388,12 @@ mod translator_tests {
 mod common_type_references {
     use cool_asserts::assert_matches;
 
+    use crate::extensions::Extensions;
     use crate::validator::{
         json_schema,
         types::{AttributeType, EntityRecordKind, Type},
         SchemaError, ValidatorSchema,
     };
-    use crate::extensions::Extensions;
 
     #[test]
     fn basic() {
@@ -2701,9 +2701,9 @@ mod common_type_references {
 
 /// Tests involving entity tags (RFC 82)
 mod entity_tags {
+    use crate::extensions::Extensions;
     use crate::validator::json_schema::{self, EntityType, EntityTypeKind};
     use crate::validator::schema::test::utils::collect_warnings;
-    use crate::extensions::Extensions;
     use cool_asserts::assert_matches;
 
     #[test]

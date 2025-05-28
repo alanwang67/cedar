@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::validator::{ValidatorActionId, ValidatorEntityType, ValidatorEntityTypeKind, ValidatorSchema};
 use crate::ast::{Eid, EntityType, EntityUID};
 use crate::entities::conformance::err::InvalidEnumEntityError;
-use crate::entities::conformance::{
-    is_valid_enumerated_entity, validate_euids_in_partial_value,
-};
+use crate::entities::conformance::{is_valid_enumerated_entity, validate_euids_in_partial_value};
 use crate::extensions::{ExtensionFunctionLookupError, Extensions};
+use crate::validator::{
+    ValidatorActionId, ValidatorEntityType, ValidatorEntityTypeKind, ValidatorSchema,
+};
 use crate::{ast, entities};
 use miette::Diagnostic;
 use nonempty::NonEmpty;
@@ -604,8 +604,8 @@ pub fn context_schema_for_action(
 #[cfg(test)]
 mod test {
     use super::*;
-    use ast::{Context, Value};
     use crate::test_utils::{expect_err, ExpectedErrorMessageBuilder};
+    use ast::{Context, Value};
     use cool_asserts::assert_matches;
     use serde_json::json;
 

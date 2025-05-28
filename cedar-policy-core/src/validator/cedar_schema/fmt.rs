@@ -416,7 +416,9 @@ pub fn json_schema_to_cedar_schema_str<N: Display>(
 mod tests {
     use crate::extensions::Extensions;
 
-    use crate::validator::{cedar_schema::parser::parse_cedar_schema_fragment, json_schema, RawName};
+    use crate::validator::{
+        cedar_schema::parser::parse_cedar_schema_fragment, json_schema, RawName,
+    };
 
     use similar_asserts::assert_eq;
 

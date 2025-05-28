@@ -17,8 +17,8 @@
 //! Implementation of level validation (RFC 76)
 
 use super::*;
-use crate::validator::types::{EntityRecordKind, RequestEnv, Type};
 use crate::ast::{BinaryOp, Expr, ExprKind, Literal, PolicyID};
+use crate::validator::types::{EntityRecordKind, RequestEnv, Type};
 use smol_str::SmolStr;
 use thiserror::Error;
 use typecheck::PolicyCheck;
@@ -241,7 +241,11 @@ impl LevelChecker<'_> {
         }
     }
 
-    fn check_expr_level(&mut self, e: &Expr<Option<crate::validator::types::Type>>, env: &RequestEnv<'_>) {
+    fn check_expr_level(
+        &mut self,
+        e: &Expr<Option<crate::validator::types::Type>>,
+        env: &RequestEnv<'_>,
+    ) {
         match e.expr_kind() {
             ExprKind::Lit(_) | ExprKind::Var(_) | ExprKind::Slot(_) | ExprKind::Unknown(_) => (),
             ExprKind::If {

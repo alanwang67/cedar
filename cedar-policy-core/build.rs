@@ -32,4 +32,3 @@ fn generate_parsers() {
         .process_dir("src/validator/cedar_schema/")
         .expect("parser synth");
 }
-

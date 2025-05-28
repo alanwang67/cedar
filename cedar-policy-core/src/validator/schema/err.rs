@@ -335,9 +335,7 @@ pub type Result<T> = std::result::Result<T, SchemaError>;
 pub mod schema_errors {
     use std::fmt::Display;
 
-    use crate::ast::{
-        EntityAttrEvaluationError, EntityType, EntityUID, InternalName, Name,
-    };
+    use crate::ast::{EntityAttrEvaluationError, EntityType, EntityUID, InternalName, Name};
     use crate::parser::{join_with_conjunction, Loc};
     use crate::{
         impl_diagnostic_from_method_on_field, impl_diagnostic_from_method_on_nonempty_field,
@@ -463,7 +461,9 @@ pub mod schema_errors {
     #[derive(Debug, Diagnostic, Error)]
     #[diagnostic(help("any actions appearing as parents need to be declared as actions"))]
     pub struct ActionNotDefinedError(
-        pub(crate) NonEmpty<crate::validator::json_schema::ActionEntityUID<crate::validator::ConditionalName>>,
+        pub(crate)  NonEmpty<
+            crate::validator::json_schema::ActionEntityUID<crate::validator::ConditionalName>,
+        >,
     );
 
     impl ActionNotDefinedError {

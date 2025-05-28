@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-use crate::ast::{
-    EntityType, EntityUID, Expr, ExprKind, Literal, Name, Pattern, Template,
-};
+use crate::ast::{EntityType, EntityUID, Expr, ExprKind, Literal, Name, Pattern, Template};
 use crate::parser::Loc;
 
 /// Returns an iterator over all literal entity uids in the expression.
@@ -155,8 +153,8 @@ fn text_in_name<'a>(loc: Option<&'a Loc>, name: &'a Name) -> impl Iterator<Item 
 #[cfg(test)]
 mod tests {
     use super::{expr_entity_uids, expr_text};
-    use crate::validator::expr_iterator::TextKind;
     use crate::ast::{EntityUID, Expr, Literal, Pattern, PatternElem, Var};
+    use crate::validator::expr_iterator::TextKind;
     use std::{collections::HashSet, str::FromStr};
 
     #[test]

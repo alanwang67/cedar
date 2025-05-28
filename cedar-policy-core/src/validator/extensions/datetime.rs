@@ -18,10 +18,10 @@
 //! out-of-date with the decimal extension definition in Core.
 //! This is tested by the `extension_schema_correctness()` test
 
-use crate::validator::extension_schema::{ArgumentCheckFn, ExtensionFunctionType, ExtensionSchema};
-use crate::validator::types::{self, Type};
 use crate::ast::{Expr, ExprKind, Literal, Name};
 use crate::extensions::datetime;
+use crate::validator::extension_schema::{ArgumentCheckFn, ExtensionFunctionType, ExtensionSchema};
+use crate::validator::types::{self, Type};
 use itertools::Itertools;
 
 use super::eval_extension_constructor;

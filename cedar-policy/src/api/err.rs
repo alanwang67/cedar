@@ -27,7 +27,6 @@ pub use cedar_policy_core::evaluator::{evaluation_errors, EvaluationError};
 pub use cedar_policy_core::extensions::{
     extension_function_lookup_errors, ExtensionFunctionLookupError,
 };
-use cedar_policy_core::{ast, authorizer, est};
 pub use cedar_policy_core::validator::cedar_schema::{schema_warnings, SchemaWarning};
 #[cfg(feature = "entity-manifest")]
 pub use cedar_policy_core::validator::entity_manifest::slicing::EntitySliceError;
@@ -36,6 +35,7 @@ use cedar_policy_core::validator::entity_manifest::{
     self, PartialExpressionError, PartialRequestError, UnsupportedCedarFeatureError,
 };
 pub use cedar_policy_core::validator::{schema_errors, SchemaError};
+use cedar_policy_core::{ast, authorizer, est};
 use miette::Diagnostic;
 use ref_cast::RefCast;
 use smol_str::SmolStr;
@@ -209,7 +209,9 @@ pub mod to_cedar_syntax_errors {
 impl From<cedar_policy_core::validator::cedar_schema::fmt::ToCedarSchemaSyntaxError>
     for ToCedarSchemaError
 {
-    fn from(value: cedar_policy_core::validator::cedar_schema::fmt::ToCedarSchemaSyntaxError) -> Self {
+    fn from(
+        value: cedar_policy_core::validator::cedar_schema::fmt::ToCedarSchemaSyntaxError,
+    ) -> Self {
         match value {
             cedar_policy_core::validator::cedar_schema::fmt::ToCedarSchemaSyntaxError::NameCollisions(
                 name_collision_err,
@@ -1154,7 +1156,8 @@ pub mod request_validation_errors {
     #[error(transparent)]
     #[diagnostic(transparent)]
     pub struct UndeclaredPrincipalTypeError(
-        #[from] cedar_policy_core::validator::request_validation_errors::UndeclaredPrincipalTypeError,
+        #[from]
+        cedar_policy_core::validator::request_validation_errors::UndeclaredPrincipalTypeError,
     );
 
     impl UndeclaredPrincipalTypeError {
@@ -1169,7 +1172,8 @@ pub mod request_validation_errors {
     #[error(transparent)]
     #[diagnostic(transparent)]
     pub struct UndeclaredResourceTypeError(
-        #[from] cedar_policy_core::validator::request_validation_errors::UndeclaredResourceTypeError,
+        #[from]
+        cedar_policy_core::validator::request_validation_errors::UndeclaredResourceTypeError,
     );
 
     impl UndeclaredResourceTypeError {

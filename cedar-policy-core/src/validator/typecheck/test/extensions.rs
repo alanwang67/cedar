@@ -16,8 +16,8 @@
 
 //! Contains tests for typechecking Cedar extensions
 
-use crate::validator::{diagnostics::ValidationError, types::Type};
 use crate::ast::Expr;
+use crate::validator::{diagnostics::ValidationError, types::Type};
 use std::str::FromStr;
 
 use super::test_utils::{

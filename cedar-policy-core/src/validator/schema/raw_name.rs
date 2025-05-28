@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-use crate::validator::schema::AllDefs;
-use crate::validator::schema_errors::TypeNotDefinedError;
 use crate::ast::{Id, InternalName, Name, UnreservedId};
 use crate::parser::Loc;
+use crate::validator::schema::AllDefs;
+use crate::validator::schema_errors::TypeNotDefinedError;
 use itertools::Itertools;
 use nonempty::{nonempty, NonEmpty};
 use serde::{Deserialize, Serialize};
@@ -59,9 +59,7 @@ impl RawName {
 
     /// Create a new [`RawName`] by parsing the provided string, which should contain
     /// an unqualified `InternalName` (no explicit namespaces)
-    pub fn parse_unqualified_name(
-        s: &str,
-    ) -> Result<Self, crate::parser::err::ParseErrors> {
+    pub fn parse_unqualified_name(s: &str) -> Result<Self, crate::parser::err::ParseErrors> {
         InternalName::parse_unqualified_name(s).map(RawName)
     }
 
@@ -69,9 +67,7 @@ impl RawName {
     /// an `InternalName` in normalized form.
     ///
     /// (See the [`cedar_policy_core::FromNormalizedStr`] trait.)
-    pub fn from_normalized_str(
-        s: &str,
-    ) -> Result<Self, crate::parser::err::ParseErrors> {
+    pub fn from_normalized_str(s: &str) -> Result<Self, crate::parser::err::ParseErrors> {
         use crate::FromNormalizedStr;
         InternalName::from_normalized_str(s).map(RawName)
     }
