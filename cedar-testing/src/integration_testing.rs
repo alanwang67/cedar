@@ -29,7 +29,7 @@ use cedar_policy_core::extensions::Extensions;
 use cedar_policy_core::validator::ValidatorSchema;
 use cedar_policy_core::{jsonvalue::JsonValueWithNoDuplicateKeys, parser};
 #[cfg(feature = "entity-manifest")]
-use cedar_policy_validator::entity_manifest::compute_entity_manifest;
+use cedar_policy_core::validator::entity_manifest::compute_entity_manifest;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
@@ -348,7 +348,7 @@ pub fn perform_integration_test(
         #[cfg(feature = "entity-manifest")]
         if should_validate {
             let entity_manifest = compute_entity_manifest(
-                &cedar_policy_validator::Validator::new(schema.clone()),
+                &cedar_policy_core::validator::Validator::new(schema.clone()),
                 policies,
             )
             .expect("test failed");
