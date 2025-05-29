@@ -18,15 +18,17 @@
 
 use std::collections::HashSet;
 
-use cedar_policy_core::ast::{PolicyID, StaticPolicy, Template};
-use cedar_policy_core::parser::parse_policy;
+use crate::ast::{PolicyID, StaticPolicy, Template};
+use crate::parser::parse_policy;
 
 use super::test_utils::{assert_sets_equal, empty_schema_file, get_loc};
-use crate::json_schema;
-use crate::typecheck::Typechecker;
-use crate::types::{EntityLUB, Type};
-use crate::validation_errors::{AttributeAccess, UnexpectedTypeHelp};
-use crate::{RawName, ValidationError, ValidationMode, ValidationWarning, ValidatorSchema};
+use crate::validator::json_schema;
+use crate::validator::typecheck::Typechecker;
+use crate::validator::types::{EntityLUB, Type};
+use crate::validator::validation_errors::{AttributeAccess, UnexpectedTypeHelp};
+use crate::validator::{
+    RawName, ValidationError, ValidationMode, ValidationWarning, ValidatorSchema,
+};
 
 #[track_caller] // report the caller's location as the location of the panic, not the location in this function
 pub(crate) fn assert_partial_typecheck(
@@ -386,9 +388,9 @@ mod passes_empty_schema {
 }
 
 mod fails_empty_schema {
-    use cedar_policy_core::{ast::PolicyID, extensions::Extensions};
+    use crate::{ast::PolicyID, extensions::Extensions};
 
-    use crate::types::Type;
+    use crate::validator::types::Type;
 
     use super::*;
 
@@ -638,10 +640,10 @@ mod passes_partial_schema {
 }
 
 mod fail_partial_schema {
-    use cedar_policy_core::{ast::PolicyID, extensions::Extensions};
+    use crate::{ast::PolicyID, extensions::Extensions};
 
     use super::*;
-    use crate::validation_errors::{LubContext, LubHelp};
+    use crate::validator::validation_errors::{LubContext, LubHelp};
 
     #[test]
     fn error_on_declared_attr() {

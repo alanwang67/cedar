@@ -2216,7 +2216,7 @@ impl<'a> arbitrary::Arbitrary<'a> for TypeOfAttribute<RawName> {
         arbitrary::size_hint::and_all(&[
             <Type<RawName> as arbitrary::Arbitrary>::size_hint(depth),
             <bool as arbitrary::Arbitrary>::size_hint(depth),
-            <cedar_policy_core::est::Annotations as arbitrary::Arbitrary>::size_hint(depth),
+            <crate::est::Annotations as arbitrary::Arbitrary>::size_hint(depth),
         ])
     }
 }

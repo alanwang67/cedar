@@ -26,10 +26,10 @@ use cedar_policy::{Decision, PolicyId, ValidationMode};
 use cedar_policy_core::ast::{EntityUID, PolicySet, Request};
 use cedar_policy_core::entities::{self, json::err::JsonDeserializationErrorContext, Entities};
 use cedar_policy_core::extensions::Extensions;
-use cedar_policy_core::validator::ValidatorSchema;
-use cedar_policy_core::{jsonvalue::JsonValueWithNoDuplicateKeys, parser};
 #[cfg(feature = "entity-manifest")]
 use cedar_policy_core::validator::entity_manifest::compute_entity_manifest;
+use cedar_policy_core::validator::ValidatorSchema;
+use cedar_policy_core::{jsonvalue::JsonValueWithNoDuplicateKeys, parser};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,

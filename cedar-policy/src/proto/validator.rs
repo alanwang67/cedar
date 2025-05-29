@@ -47,10 +47,10 @@ impl From<&models::Schema> for cedar_policy_core::validator::ValidatorSchema {
     }
 }
 
-impl From<&cedar_policy_core::validator::validator::ValidationMode> for models::ValidationMode {
+impl From<&cedar_policy_core::validator::ValidationMode> for models::ValidationMode {
     // PANIC SAFETY: experimental feature
     #[allow(clippy::unimplemented)]
-    fn from(v: &cedar_policy_core::ValidationMode) -> Self {
+    fn from(v: &cedar_policy_core::validator::ValidationMode) -> Self {
         match v {
             cedar_policy_core::validator::ValidationMode::Strict => models::ValidationMode::Strict,
             cedar_policy_core::validator::ValidationMode::Permissive => {

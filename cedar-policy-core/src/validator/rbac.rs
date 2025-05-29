@@ -1637,12 +1637,12 @@ mod test {
 #[cfg(test)]
 #[cfg(feature = "partial-validate")]
 mod partial_schema {
-    use cedar_policy_core::{
+    use crate::{
         ast::{PolicyID, StaticPolicy, Template},
         parser::parse_policy,
     };
 
-    use crate::{json_schema, RawName, Validator};
+    use crate::validator::{json_schema, RawName, Validator};
 
     #[track_caller] // report the caller's location as the location of the panic, not the location in this function
     fn assert_validates_with_empty_schema(policy: StaticPolicy) {
@@ -1660,7 +1660,7 @@ mod partial_schema {
         let (template, _) = Template::link_static_policy(policy);
         let validate = Validator::new(schema);
         let errs = validate
-            .validate_policy(&template, crate::ValidationMode::Partial)
+            .validate_policy(&template, crate::validator::ValidationMode::Partial)
             .0
             .collect::<Vec<_>>();
         assert_eq!(errs, vec![], "Did not expect any validation errors.");

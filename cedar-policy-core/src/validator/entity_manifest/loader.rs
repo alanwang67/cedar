@@ -582,7 +582,7 @@ fn compute_ancestors_request(
 
 #[cfg(test)]
 mod test {
-    use cedar_policy_core::ast::Value;
+    use crate::ast::Value;
     use smol_str::ToSmolStr;
 
     use super::merge_values;

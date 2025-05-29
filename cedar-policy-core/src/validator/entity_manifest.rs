@@ -683,7 +683,7 @@ fn entity_manifest_from_expr(
 
 #[cfg(test)]
 mod entity_slice_tests {
-    use cedar_policy_core::{ast::PolicyID, extensions::Extensions, parser::parse_policy};
+    use crate::{ast::PolicyID, extensions::Extensions, parser::parse_policy};
 
     use super::*;
 

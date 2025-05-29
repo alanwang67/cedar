@@ -16,13 +16,13 @@
 
 //! This module defines the publicly exported error types.
 
-#[cfg(feature = "entity-manifest")]
-use crate::entities::err::EntitiesError;
 use crate::{EntityUid, PolicyId};
 pub use cedar_policy_core::ast::{
     expression_construction_errors, restricted_expr_errors, ContainsUnknown,
     ExpressionConstructionError, PartialValueToValueError, RestrictedExpressionError,
 };
+#[cfg(feature = "entity-manifest")]
+use cedar_policy_core::entities::err::EntitiesError;
 pub use cedar_policy_core::evaluator::{evaluation_errors, EvaluationError};
 pub use cedar_policy_core::extensions::{
     extension_function_lookup_errors, ExtensionFunctionLookupError,

@@ -255,7 +255,9 @@ mod entity_slice_tests {
         parser::{self, parse_policy},
     };
 
-    use crate::{entity_manifest::compute_entity_manifest, CoreSchema, Validator, ValidatorSchema};
+    use crate::validator::{
+        entity_manifest::compute_entity_manifest, CoreSchema, Validator, ValidatorSchema,
+    };
 
     use super::*;
 
