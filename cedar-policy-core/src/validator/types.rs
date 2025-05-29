@@ -43,7 +43,7 @@ use crate::{
 };
 
 #[cfg(feature = "extended-schema")]
-use cedar_policy_core::parser::Loc;
+use crate::parser::Loc;
 
 use crate::validator::{validation_errors::LubHelp, ValidationMode};
 

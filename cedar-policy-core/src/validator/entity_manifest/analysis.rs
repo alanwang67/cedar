@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use smol_str::SmolStr;
 
-use crate::{
+use crate::validator::{
     entity_manifest::{AccessPath, AccessTrie, EntityRoot, RootAccessTrie},
     types::{EntityRecordKind, Type},
 };

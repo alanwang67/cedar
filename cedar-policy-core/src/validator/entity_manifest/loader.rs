@@ -22,14 +22,14 @@ use std::{
     sync::Arc,
 };
 
-use cedar_policy_core::{
+use crate::{
     ast::{Context, Entity, EntityUID, Literal, PartialValue, Request, Value, ValueKind, Var},
     entities::{Entities, NoEntitiesSchema, TCComputation},
     extensions::Extensions,
 };
 use smol_str::SmolStr;
 
-use crate::entity_manifest::{
+use crate::validator::entity_manifest::{
     slicing::{
         EntitySliceError, PartialContextError, PartialEntityError, WrongNumberOfEntitiesError,
     },

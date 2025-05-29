@@ -19,9 +19,9 @@
 //! This is tested by the `extension_schema_correctness()` test
 
 #![cfg(feature = "partial-eval")]
-use crate::extension_schema::{ExtensionFunctionType, ExtensionSchema};
-use crate::types::{self, Type};
-use cedar_policy_core::extensions::partial_evaluation;
+use crate::extensions::partial_evaluation;
+use crate::validator::extension_schema::{ExtensionFunctionType, ExtensionSchema};
+use crate::validator::types::{self, Type};
 
 // Note on safety:
 // This module depends on the Cedar parser only constructing AST with valid extension calls

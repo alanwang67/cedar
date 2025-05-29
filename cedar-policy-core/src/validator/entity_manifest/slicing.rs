@@ -3,9 +3,9 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Display;
 
-use cedar_policy_core::entities::err::EntitiesError;
-use cedar_policy_core::entities::Dereference;
-use cedar_policy_core::{
+use crate::entities::err::EntitiesError;
+use crate::entities::Dereference;
+use crate::{
     ast::{Entity, EntityUID, Literal, PartialValue, Request, Value, ValueKind},
     entities::Entities,
 };
@@ -13,10 +13,10 @@ use miette::Diagnostic;
 use smol_str::SmolStr;
 use thiserror::Error;
 
-use crate::entity_manifest::loader::{
+use crate::validator::entity_manifest::loader::{
     load_entities, AncestorsRequest, EntityAnswer, EntityLoader, EntityRequest,
 };
-use crate::entity_manifest::{AccessTrie, EntityManifest, PartialRequestError};
+use crate::validator::entity_manifest::{AccessTrie, EntityManifest, PartialRequestError};
 
 /// Error when expressions are partial during entity
 /// slicing.
@@ -248,7 +248,7 @@ mod entity_slice_tests {
     use similar_asserts::assert_eq;
     use std::collections::BTreeSet;
 
-    use cedar_policy_core::{
+    use crate::{
         ast::{Context, PolicyID, PolicySet},
         entities::{EntityJsonParser, TCComputation},
         extensions::Extensions,

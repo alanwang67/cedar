@@ -20,10 +20,10 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
-use cedar_policy_core::ast::{
+use crate::ast::{
     BinaryOp, EntityUID, Expr, ExprKind, Literal, PolicySet, RequestType, UnaryOp, Var,
 };
-use cedar_policy_core::entities::err::EntitiesError;
+use crate::entities::err::EntitiesError;
 use miette::Diagnostic;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -35,13 +35,15 @@ mod loader;
 pub mod slicing;
 mod type_annotations;
 
-use crate::entity_manifest::analysis::{EntityManifestAnalysisResult, WrappedAccessPaths};
-use crate::{
+use crate::validator::entity_manifest::analysis::{
+    EntityManifestAnalysisResult, WrappedAccessPaths,
+};
+use crate::validator::{
     typecheck::{PolicyCheck, Typechecker},
     types::Type,
     ValidationMode, ValidatorSchema,
 };
-use crate::{ValidationResult, Validator};
+use crate::validator::{ValidationResult, Validator};
 
 /// Data structure storing what data is needed based on the the [`RequestType`].
 ///

@@ -23,7 +23,7 @@ pub mod models {
             clippy::derive_partial_eq_without_eq,
             clippy::module_name_repetitions
         )]
-        include!(concat!(env!("OUT_DIR"), "/cedar_policy_core.rs"));
+        // include!(concat!(env!("OUT_DIR"), "/cedar_policy_core.rs"));
     }
     mod cedar_policy_validator {
         #![allow(
@@ -31,7 +31,7 @@ pub mod models {
             clippy::doc_markdown,
             clippy::derive_partial_eq_without_eq
         )]
-        include!(concat!(env!("OUT_DIR"), "/cedar_policy_validator.rs"));
+        // include!(concat!(env!("OUT_DIR"), "/cedar_policy_validator.rs"));
     }
     pub use cedar_policy_core::*;
     pub use cedar_policy_validator::*;

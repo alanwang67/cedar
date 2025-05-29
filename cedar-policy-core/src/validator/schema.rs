@@ -39,7 +39,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 #[cfg(feature = "extended-schema")]
-use crate::types::Primitive;
+use crate::validator::types::Primitive;
 
 use crate::validator::{
     cedar_schema::SchemaWarning,

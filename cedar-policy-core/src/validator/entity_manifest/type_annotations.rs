@@ -18,9 +18,9 @@
 
 use std::collections::HashMap;
 
-use cedar_policy_core::ast::{RequestType, Var};
+use crate::ast::{RequestType, Var};
 
-use crate::{
+use crate::validator::{
     entity_manifest::{
         AccessTrie, EntityManifest, EntityRoot, Fields, MismatchedEntityManifestError,
         MismatchedMissingEntityError, MismatchedNotStrictSchemaError, RootAccessTrie,
