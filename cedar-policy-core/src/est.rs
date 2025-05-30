@@ -280,6 +280,10 @@ impl Policy {
         id: Option<ast::PolicyID>,
     ) -> Result<ast::Template, FromJsonError> {
         let id = id.unwrap_or_else(|| ast::PolicyID::from_string("JSON policy"));
+
+        // Chore: we need to write some code to extract the type from the tempalte annotations for the JSON format 
+        // This is potentially easier than the AST format, so maybe we can start with this rather than the parser 
+
         let mut conditions_iter = self
             .conditions
             .into_iter()
@@ -307,6 +311,7 @@ impl Policy {
             self.action.try_into()?,
             self.resource.try_into()?,
             conditions,
+            BTreeMap::new(), // Chore: We will have to change this once we decide on what the JSON format should be 
         ))
     }
 }

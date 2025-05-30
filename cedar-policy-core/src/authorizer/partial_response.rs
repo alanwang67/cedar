@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 
 use either::Either;
 use std::sync::Arc;
@@ -492,6 +492,7 @@ fn construct_policy((effect, id, expr, annotations): PolicyComponents<'_>) -> Po
         id.clone(),
         expr.source_loc().into_maybe_loc(),
         (*annotations).clone(),
+        BTreeMap::new()
     )
 }
 
@@ -629,18 +630,21 @@ mod test {
             Expr::val(true),
             PolicyID::from_string("a"),
             None,
+            BTreeMap::new(),
         );
         let b = Policy::from_when_clause(
             Effect::Permit,
             Expr::val(false),
             PolicyID::from_string("b"),
             None,
+            BTreeMap::new(),
         );
         let c = Policy::from_when_clause(
             Effect::Permit,
             Expr::val(false),
             PolicyID::from_string("c"),
             None,
+            BTreeMap::new(),
         );
         let d = Policy::from_when_clause_annos(
             Effect::Permit,
@@ -648,24 +652,30 @@ mod test {
             PolicyID::from_string("d"),
             None,
             Arc::default(),
+
+            BTreeMap::new(),
         );
         let e = Policy::from_when_clause(
             Effect::Forbid,
             Expr::val(true),
             PolicyID::from_string("e"),
             None,
+
+            BTreeMap::new(),
         );
         let f = Policy::from_when_clause(
             Effect::Forbid,
             Expr::val(false),
             PolicyID::from_string("f"),
             None,
+            BTreeMap::new(),
         );
         let g = Policy::from_when_clause(
             Effect::Forbid,
             Expr::val(false),
             PolicyID::from_string("g"),
             None,
+            BTreeMap::new(),
         );
         let h = Policy::from_when_clause_annos(
             Effect::Forbid,
@@ -673,6 +683,7 @@ mod test {
             PolicyID::from_string("h"),
             None,
             Arc::default(),
+            BTreeMap::new(),
         );
 
         assert_eq!(

@@ -512,7 +512,7 @@ impl PolicySet {
                 .ok_or_else(|| LinkingError::NoSuchTemplate {
                     id: template_id.clone(),
                 })?;
-        let r = Template::link(t, new_id.clone(), values)?;
+        let r = Template::link(t, new_id.clone(), values, HashMap::new())?;
 
         // Both maps must not contain the `new_id`
         match (
@@ -646,7 +646,7 @@ mod test {
         parser,
     };
 
-    use std::collections::HashMap;
+    use std::{collections::{BTreeMap, HashMap}};
 
     #[test]
     fn link_conflicts() {
@@ -706,7 +706,7 @@ mod test {
             r#"Test::"test1""#.parse().expect("Failed to parse"),
         )]);
 
-        let p1 = Template::link(Arc::clone(&template), PolicyID::from_string("link"), env1)
+        let p1 = Template::link(Arc::clone(&template), PolicyID::from_string("link"), env1, HashMap::new())
             .expect("Failed to link");
         pset.add(p1).expect(
             "Adding link should succeed, even though the template wasn't previously in the pset",
@@ -725,6 +725,7 @@ mod test {
             Arc::clone(&template),
             PolicyID::from_string("link"),
             env2.clone(),
+            HashMap::new()
         )
         .expect("Failed to link");
         match pset.add(p2) {
@@ -732,7 +733,7 @@ mod test {
             Err(PolicySetError::Occupied { id }) => assert_eq!(id, PolicyID::from_string("link")),
         }
 
-        let p3 = Template::link(Arc::clone(&template), PolicyID::from_string("link2"), env2)
+        let p3 = Template::link(Arc::clone(&template), PolicyID::from_string("link2"), env2, HashMap::new())
             .expect("Failed to link");
         pset.add(p3).expect(
             "Adding link should succeed, even though the template already existed in the pset",
@@ -754,6 +755,7 @@ mod test {
             Arc::clone(&template2),
             PolicyID::from_string("unique3"),
             env3,
+            HashMap::new()
         )
         .expect("Failed to link");
         match pset.add(p4) {
@@ -927,6 +929,7 @@ mod test {
             ActionConstraint::any(),
             ResourceConstraint::any(),
             Expr::val(true),
+            BTreeMap::new()
         );
 
         let mut s = PolicySet::new();
@@ -956,6 +959,7 @@ mod test {
             ActionConstraint::any(),
             ResourceConstraint::is_in_slot(),
             Expr::val(true),
+            BTreeMap::new()
         );
 
         let mut s = PolicySet::new();
@@ -1021,6 +1025,7 @@ mod test {
             ActionConstraint::any(),
             ResourceConstraint::any(),
             Expr::val(true),
+            BTreeMap::new()
         );
         s.add_template(t).unwrap();
 
@@ -1067,6 +1072,7 @@ mod test {
             ActionConstraint::any(),
             ResourceConstraint::any(),
             Expr::val(true),
+            BTreeMap::new()
         );
         let added = pset.add_static(policy1.clone()).is_ok();
         assert!(added);
@@ -1102,6 +1108,7 @@ mod test {
             ActionConstraint::any(),
             ResourceConstraint::any(),
             Expr::val(true),
+            BTreeMap::new(),
         );
         let id3 = PolicyID::from_string("link");
         let added = pset.add_template(template2).is_ok();

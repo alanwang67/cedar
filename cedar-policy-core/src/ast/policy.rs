@@ -29,6 +29,8 @@ use std::{
     sync::Arc,
 };
 use thiserror::Error;
+use std::collections::BTreeMap;
+use crate::entities::SchemaType;
 
 #[cfg(feature = "wasm")]
 extern crate tsify;
@@ -125,6 +127,7 @@ impl Template {
         action_constraint: ActionConstraint,
         resource_constraint: ResourceConstraint,
         non_scope_constraint: Expr,
+        slot_types: BTreeMap<Slot, SchemaType>, 
     ) -> Self {
         let body = TemplateBody::new(
             id,
@@ -135,6 +138,7 @@ impl Template {
             action_constraint,
             resource_constraint,
             non_scope_constraint,
+            slot_types
         );
         // INVARIANT (slot cache correctness)
         // This invariant is maintained in the body of the From impl
@@ -159,6 +163,7 @@ impl Template {
         action_constraint: ActionConstraint,
         resource_constraint: ResourceConstraint,
         non_scope_constraint: Arc<Expr>,
+        slot_types: BTreeMap<Slot,SchemaType>
     ) -> Self {
         let body = TemplateBody::new_shared(
             id,
@@ -169,6 +174,7 @@ impl Template {
             action_constraint,
             resource_constraint,
             non_scope_constraint,
+            slot_types
         );
         // INVARIANT (slot cache correctness)
         // This invariant is maintained in the body of the From impl
@@ -306,10 +312,11 @@ impl Template {
         template: Arc<Template>,
         new_id: PolicyID,
         values: HashMap<SlotId, EntityUID>,
+        generalized_values: HashMap<SlotId, RestrictedExpr>
     ) -> Result<Policy, LinkingError> {
         // INVARIANT (policy total map) Relies on check_binding to uphold the invariant
         Template::check_binding(&template, &values)
-            .map(|_| Policy::new(template, Some(new_id), values))
+            .map(|_| Policy::new(template, Some(new_id), values, generalized_values))
     }
 
     /// Take a static policy and create a template and a template-linked policy for it.
@@ -324,7 +331,7 @@ impl Template {
             slots: vec![],
         });
         t.check_invariant();
-        let p = Policy::new(Arc::clone(&t), None, HashMap::new());
+        let p = Policy::new(Arc::clone(&t), None, HashMap::new(), HashMap::new());
         (t, p)
     }
 }
@@ -421,13 +428,17 @@ pub struct Policy {
     /// The constructor `new` is only visible in this module,
     /// so it is the responsibility of callers to maintain
     values: HashMap<SlotId, EntityUID>,
+    /// These are the slots that are not principal nor resource
+    /// Note that if principal and resource have types associated with them
+    /// they will appear in the values field
+    generalized_values: HashMap<SlotId, RestrictedExpr>,
 }
 
 impl Policy {
     /// Link a policy to its template
     /// INVARIANT (values total map):
     /// `values` must bind every open slot in `template`
-    fn new(template: Arc<Template>, link_id: Option<PolicyID>, values: SlotEnv) -> Self {
+    fn new(template: Arc<Template>, link_id: Option<PolicyID>, values: SlotEnv, generalized_values: GeneralizedSlotEnv) -> Self {
         #[cfg(debug_assertions)]
         {
             // PANIC SAFETY: asserts (value total map invariant) which is justified at call sites
@@ -438,17 +449,19 @@ impl Policy {
             template,
             link: link_id,
             values,
+            generalized_values,
         }
     }
 
     /// Build a policy with a given effect, given when clause, and unconstrained scope variables
-    pub fn from_when_clause(effect: Effect, when: Expr, id: PolicyID, loc: MaybeLoc) -> Self {
+    pub fn from_when_clause(effect: Effect, when: Expr, id: PolicyID, loc: MaybeLoc, slot_types: BTreeMap<Slot, SchemaType>) -> Self {
         Self::from_when_clause_annos(
             effect,
             Arc::new(when),
             id,
             loc,
             Arc::new(Annotations::default()),
+            slot_types
         )
     }
 
@@ -459,6 +472,7 @@ impl Policy {
         id: PolicyID,
         loc: MaybeLoc,
         annotations: Arc<Annotations>,
+        slot_types: BTreeMap<Slot, SchemaType>
     ) -> Self {
         let t = Template::new_shared(
             id,
@@ -469,8 +483,9 @@ impl Policy {
             ActionConstraint::any(),
             ResourceConstraint::any(),
             when,
+            slot_types
         );
-        Self::new(Arc::new(t), None, SlotEnv::new())
+        Self::new(Arc::new(t), None, SlotEnv::new(), GeneralizedSlotEnv::new())
     }
 
     /// Get pointer to the template for this policy
@@ -567,11 +582,13 @@ impl Policy {
                 template: Arc::new(self.template.new_id(id)),
                 link: None,
                 values: self.values.clone(),
+                generalized_values: self.generalized_values.clone(), 
             },
             Some(_) => Policy {
                 template: self.template.clone(),
                 link: Some(id),
                 values: self.values.clone(),
+                generalized_values: self.generalized_values.clone(), 
             },
         }
     }
@@ -624,6 +641,9 @@ impl std::fmt::Display for Policy {
 /// Map from Slot Ids to Entity UIDs which fill the slots
 pub type SlotEnv = HashMap<SlotId, EntityUID>;
 
+/// Map from Slot Ids to Restricted Expr which fills generalized slots
+pub type GeneralizedSlotEnv = HashMap<SlotId, RestrictedExpr>;
+
 /// Represents either a static policy or a template linked policy.
 ///
 /// Contains less rich information than `Policy`. In particular, this form is
@@ -640,6 +660,8 @@ pub struct LiteralPolicy {
     link_id: Option<PolicyID>,
     /// Values of the slots
     values: SlotEnv,
+    /// Values of the generalized slots 
+    generalized_values: GeneralizedSlotEnv,
 }
 
 impl LiteralPolicy {
@@ -651,6 +673,7 @@ impl LiteralPolicy {
             template_id,
             link_id: None,
             values: SlotEnv::new(),
+            generalized_values: GeneralizedSlotEnv::new(),
         }
     }
 
@@ -661,11 +684,13 @@ impl LiteralPolicy {
         template_id: PolicyID,
         link_id: PolicyID,
         values: SlotEnv,
+        generalized_values: GeneralizedSlotEnv,
     ) -> Self {
         Self {
             template_id,
             link_id: Some(link_id),
             values,
+            generalized_values, 
         }
     }
 
@@ -713,6 +738,7 @@ mod hashing_tests {
             template_id: PolicyID::from_string("template"),
             link_id: Some(PolicyID::from_string("id")),
             values: map,
+            generalized_values: HashMap::new(), 
         }
     }
 
@@ -751,7 +777,7 @@ impl LiteralPolicy {
             .ok_or_else(|| ReificationError::NoSuchTemplate(self.template_id().clone()))?;
         // INVARIANT (values total map)
         Template::check_binding(template, &self.values).map_err(ReificationError::Linking)?;
-        Ok(Policy::new(template.clone(), self.link_id, self.values))
+        Ok(Policy::new(template.clone(), self.link_id, self.values, HashMap::new()))
     }
 
     /// Lookup the euid bound by a SlotId
@@ -804,6 +830,7 @@ impl From<Policy> for LiteralPolicy {
             template_id: p.template.id().clone(),
             link_id: p.link,
             values: p.values,
+            generalized_values: p.generalized_values,
         }
     }
 }
@@ -919,6 +946,7 @@ impl StaticPolicy {
             action_constraint,
             resource_constraint,
             non_scope_constraints,
+            BTreeMap::new(), // Chore: Since this is a static policy there can not be any slots
         );
         let first_slot = body.condition().slots().next();
         // INVARIANT (static policy correctness), checks that no slots exists
@@ -990,6 +1018,10 @@ pub struct TemplateBodyImpl {
     /// This will be a conjunction of the policy's `when` conditions and the
     /// negation of each of the policy's `unless` conditions.
     non_scope_constraints: Arc<Expr>,
+
+    /// If the policy is a generalized template includes types 
+    /// for the correspond slots 
+    slot_types: BTreeMap<Slot, SchemaType>,
 }
 
 /// Policy datatype. This is used for both templates (in which case it contains
@@ -1222,6 +1254,7 @@ impl TemplateBody {
         action_constraint: ActionConstraint,
         resource_constraint: ResourceConstraint,
         non_scope_constraints: Arc<Expr>,
+        slot_types: BTreeMap<Slot, SchemaType>, // Chore: Is this API for static policies only, if so we can elide this field 
     ) -> Self {
         Self::TemplateBody(TemplateBodyImpl {
             id,
@@ -1232,6 +1265,7 @@ impl TemplateBody {
             action_constraint,
             resource_constraint,
             non_scope_constraints,
+            slot_types, 
         })
     }
 
@@ -1246,6 +1280,7 @@ impl TemplateBody {
         action_constraint: ActionConstraint,
         resource_constraint: ResourceConstraint,
         non_scope_constraints: Expr,
+        slot_types: BTreeMap<Slot, SchemaType>, // Chore: Is this API for static policies only, if so we can elide this field 
     ) -> Self {
         Self::TemplateBody(TemplateBodyImpl {
             id,
@@ -1256,6 +1291,7 @@ impl TemplateBody {
             action_constraint,
             resource_constraint,
             non_scope_constraints: Arc::new(non_scope_constraints),
+            slot_types 
         })
     }
 }
@@ -2012,6 +2048,7 @@ pub(crate) mod test_generators {
                         action.clone(),
                         resource.clone(),
                         Expr::val(true),
+                        BTreeMap::new()
                     );
                     let forbid = Template::new(
                         forbid.clone(),
@@ -2022,6 +2059,7 @@ pub(crate) mod test_generators {
                         action.clone(),
                         resource.clone(),
                         Expr::val(true),
+                        BTreeMap::new()
                     );
                     buf.push(permit);
                     buf.push(forbid);
@@ -2039,7 +2077,7 @@ pub(crate) mod test_generators {
 #[allow(clippy::panic)]
 mod test {
     use cool_asserts::assert_matches;
-    use std::collections::HashSet;
+    use std::{collections::HashSet};
 
     use super::{test_generators::*, *};
     use crate::{
@@ -2059,7 +2097,7 @@ mod test {
                 .slots()
                 .map(|slot| (slot.id.clone(), EntityUID::with_eid("eid")))
                 .collect();
-            let _ = Template::link(t, PolicyID::from_string("id"), env).expect("Linking failed");
+            let _ = Template::link(t, PolicyID::from_string("id"), env, HashMap::new()).expect("Linking failed");
         }
     }
 
@@ -2072,7 +2110,7 @@ mod test {
             let a = template.action_constraint().clone();
             let r = template.resource_constraint().clone();
             let non_scope = template.non_scope_constraints().clone();
-            let t2 = Template::new(id, None, Annotations::new(), effect, p, a, r, non_scope);
+            let t2 = Template::new(id, None, Annotations::new(), effect, p, a, r, non_scope, BTreeMap::new());
             assert_eq!(template, t2);
         }
     }
@@ -2114,10 +2152,11 @@ mod test {
             ActionConstraint::Any,
             ResourceConstraint::any(),
             Expr::val(true),
+            BTreeMap::new()
         ));
         let mut m = HashMap::new();
         m.insert(SlotId::resource(), EntityUID::with_eid("eid"));
-        assert_matches!(Template::link(t, iid, m), Err(LinkingError::ArityError { unbound_values, extra_values }) => {
+        assert_matches!(Template::link(t, iid, m, HashMap::new()), Err(LinkingError::ArityError { unbound_values, extra_values }) => {
             assert_eq!(unbound_values, vec![SlotId::principal()]);
             assert_eq!(extra_values, vec![SlotId::resource()]);
         });
@@ -2136,14 +2175,15 @@ mod test {
             ActionConstraint::Any,
             ResourceConstraint::is_in_slot(),
             Expr::val(true),
+            BTreeMap::new()
         ));
-        assert_matches!(Template::link(t.clone(), iid.clone(), HashMap::new()), Err(LinkingError::ArityError { unbound_values, extra_values }) => {
+        assert_matches!(Template::link(t.clone(), iid.clone(), HashMap::new(), HashMap::new()), Err(LinkingError::ArityError { unbound_values, extra_values }) => {
             assert_eq!(unbound_values, vec![SlotId::resource(), SlotId::principal()]);
             assert_eq!(extra_values, vec![]);
         });
         let mut m = HashMap::new();
         m.insert(SlotId::principal(), EntityUID::with_eid("eid"));
-        assert_matches!(Template::link(t, iid, m), Err(LinkingError::ArityError { unbound_values, extra_values }) => {
+        assert_matches!(Template::link(t, iid, m, HashMap::new()), Err(LinkingError::ArityError { unbound_values, extra_values }) => {
             assert_eq!(unbound_values, vec![SlotId::resource()]);
             assert_eq!(extra_values, vec![]);
         });
@@ -2162,13 +2202,14 @@ mod test {
             ActionConstraint::any(),
             ResourceConstraint::is_eq_slot(),
             Expr::val(true),
+            BTreeMap::new()
         ));
 
         let mut m = HashMap::new();
         m.insert(SlotId::principal(), EntityUID::with_eid("theprincipal"));
         m.insert(SlotId::resource(), EntityUID::with_eid("theresource"));
 
-        let r = Template::link(t, iid.clone(), m).expect("Should Succeed");
+        let r = Template::link(t, iid.clone(), m, HashMap::new()).expect("Should Succeed");
         assert_eq!(r.id(), &iid);
         assert_eq!(
             r.env().get(&SlotId::principal()),

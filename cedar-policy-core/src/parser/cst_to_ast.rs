@@ -44,6 +44,7 @@ use crate::ast::{
     self, ActionConstraint, CallStyle, Integer, PatternElem, PolicySetError, PrincipalConstraint,
     PrincipalOrResourceConstraint, ResourceConstraint, UnreservedId,
 };
+use crate::entities::{Entities, Schema, SchemaType};
 use crate::expr_builder::ExprBuilder;
 use crate::fuzzy_match::fuzzy_search_limited;
 use itertools::{Either, Itertools};
@@ -350,6 +351,7 @@ impl Node<Option<cst::Policy>> {
             resource,
             conds,
             self.loc.as_loc_ref(),
+            BTreeMap::new(), // Chore: This will have to be replaced after we finish the parser
         ))
     }
 
@@ -2342,6 +2344,7 @@ fn construct_template_policy(
     resource: ast::ResourceConstraint,
     conds: Vec<ast::Expr>,
     loc: Option<&Loc>,
+    slot_types: BTreeMap<ast::Slot, SchemaType>
 ) -> ast::Template {
     let construct_template = |non_scope_constraint| {
         ast::Template::new(
@@ -2353,6 +2356,7 @@ fn construct_template_policy(
             action,
             resource,
             non_scope_constraint,
+            slot_types,
         )
     };
     let mut conds_iter = conds.into_iter();

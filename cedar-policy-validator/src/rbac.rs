@@ -430,7 +430,7 @@ impl Validator {
 #[allow(clippy::indexing_slicing)]
 #[cfg(test)]
 mod test {
-    use std::collections::{HashMap, HashSet};
+    use std::collections::{BTreeMap, HashMap, HashSet};
 
     use cedar_policy_core::{
         ast::{Effect, Eid, EntityUID, Expr, PolicyID, PrincipalConstraint, ResourceConstraint},
@@ -540,6 +540,7 @@ mod test {
                     .expect("should be a valid identifier"),
             )),
             Expr::val(true),
+            BTreeMap::new()
         );
 
         let validate = Validator::new(singleton_schema);
@@ -630,6 +631,7 @@ mod test {
             ActionConstraint::is_eq(entity),
             ResourceConstraint::any(),
             Expr::val(true),
+            BTreeMap::new(),
         );
 
         let validate = Validator::new(singleton_schema);
@@ -867,6 +869,7 @@ mod test {
             ActionConstraint::is_eq(entity),
             ResourceConstraint::any(),
             Expr::val(true),
+            BTreeMap::new(),
         );
 
         let validate = Validator::new(schema);
@@ -932,6 +935,7 @@ mod test {
             ActionConstraint::any(),
             ResourceConstraint::any(),
             Expr::val(true),
+            BTreeMap::new(),
         );
 
         let validate = Validator::new(schema);
@@ -1212,6 +1216,7 @@ mod test {
             ActionConstraint::is_eq(action),
             ResourceConstraint::is_eq(Arc::new(resource)),
             Expr::val(true),
+            BTreeMap::new(),
         );
 
         let validator = Validator::new(schema);
@@ -1601,6 +1606,7 @@ mod test {
             ActionConstraint::is_in([action_grandparent_euid]),
             ResourceConstraint::is_in(Arc::new(resource_grandparent_euid)),
             Expr::val(true),
+            BTreeMap::new(),
         );
 
         let validator = Validator::new(schema);
