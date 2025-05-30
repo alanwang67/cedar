@@ -2745,7 +2745,7 @@ impl PolicySet {
         let linked_lossless = template
             .lossless
             .clone()
-            .link(unwrapped_vals.iter().map(|(k, v)| (*k, v)))
+            .link(unwrapped_vals.iter().map(|(k, v)| (k.clone(), v)))
             // The only error case for `lossless.link()` is a template with
             // slots which are not filled by the provided values. `ast.link()`
             // will have already errored if there are any unfilled slots in the
@@ -2824,7 +2824,7 @@ fn is_static_or_link(
                 .ast
                 .env()
                 .iter()
-                .map(|(id, euid)| (*id, euid.clone()))
+                .map(|(id, euid)| (id.clone(), euid.clone()))
                 .collect();
             Ok(Either::Right(TemplateLink {
                 new_id: id.into(),
@@ -3338,7 +3338,7 @@ impl Policy {
                 .ast
                 .env()
                 .iter()
-                .map(|(key, value)| ((*key).into(), value.clone().into()))
+                .map(|(key, value)| ((key.clone()).into(), value.clone().into()))
                 .collect();
             Some(wrapped_vals)
         }
@@ -3778,7 +3778,7 @@ impl LosslessPolicy {
                 if slots.is_empty() {
                     Ok(est)
                 } else {
-                    let unwrapped_vals = slots.iter().map(|(k, v)| (*k, v.into())).collect();
+                    let unwrapped_vals = slots.iter().map(|(k, v)| (k.clone(), v.into())).collect();
                     Ok(est.link(&unwrapped_vals)?)
                 }
             }

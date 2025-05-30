@@ -293,8 +293,8 @@ impl Template {
             Ok(())
         } else {
             Err(LinkingError::from_unbound_and_extras(
-                unbound.into_iter().map(|slot| slot.id),
-                extra.into_iter().copied(),
+                unbound.into_iter().map(|slot| slot.id.clone()),
+                extra.into_iter().cloned(),
             ))
         }
     }
@@ -1573,7 +1573,7 @@ impl From<EntityUID> for EntityReference {
 /// Subset of AST variables that have the same constraint form
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-pub enum PrincipalOrResource {
+pub enum PrincipalOrResource { // Chore: We will have to take this into account for typed principal and resource slots
     /// The principal of a request
     Principal,
     /// The resource of a request
@@ -2057,7 +2057,7 @@ mod test {
             let t = Arc::new(template);
             let env = t
                 .slots()
-                .map(|slot| (slot.id, EntityUID::with_eid("eid")))
+                .map(|slot| (slot.id.clone(), EntityUID::with_eid("eid")))
                 .collect();
             let _ = Template::link(t, PolicyID::from_string("id"), env).expect("Linking failed");
         }

@@ -403,6 +403,7 @@ impl AsRef<ast::SlotId> for SlotId {
     }
 }
 
+// Chore: Figure out if this is an external API?
 impl SlotId {
     /// Get the slot for `principal`
     pub fn principal() -> Self {
