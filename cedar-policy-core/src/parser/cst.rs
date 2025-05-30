@@ -406,7 +406,7 @@ pub enum Literal {
 }
 
 /// Template Slots
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Slot {
     /// Slot for Principal Constraints
     Principal,

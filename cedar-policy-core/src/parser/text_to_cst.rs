@@ -1427,6 +1427,23 @@ mod tests {
         );
     }
 
+    // Chore: uncomment this test case once we finish to_template for ast
+    // #[test]
+    // fn generalized_template_slot_in_condition() {
+    //     let src = r#"
+    //         template(?rand: bool) => 
+    //         permit(principal,action,resource) when { ?rand.date };
+    //     "#;
+    //     println!("{}", text_to_cst::parse_policy(src).expect("parse_error").try_as_inner().unwrap());
+    //         // .to_template(ast::PolicyID::from_string("i0"))
+    //         // .unwrap_or_else(|errs| {
+    //         //     panic!(
+    //         //         "Failed to create a policy template: {:?}",
+    //         //         miette::Report::new(errs)
+    //         //     );
+    //         // });
+    // }
+
     #[test]
     #[cfg(feature = "tolerant-ast")]
     fn policies_tolerant_success() {

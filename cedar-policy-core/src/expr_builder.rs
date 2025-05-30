@@ -33,7 +33,7 @@ use crate::parser::err::ParseErrors;
 /// Defines a generic interface for building different expression data
 /// structures.
 #[allow(clippy::wrong_self_convention)]
-pub trait ExprBuilder: Clone {
+pub trait ExprBuilder: Clone { /// Chore: I think we might have to add an extra parameter here to store the type arguments?
     /// The type of expression constructed by this instance of `ExprBuilder`.
     type Expr: Clone + std::fmt::Display;
 

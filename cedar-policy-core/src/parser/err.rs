@@ -757,7 +757,7 @@ lazy_static! {
             ("NUMBER", "number"),
             ("STRINGLIT", "string literal"),
         ]),
-        impossible_tokens: HashSet::from(["\"=\"", "\"%\"", "\"/\"", "OTHER_SLOT"]),
+        impossible_tokens: HashSet::from(["\"=\"", "\"%\"", "\"/\""]),
         special_identifier_tokens: HashSet::from([
             "PERMIT",
             "FORBID",

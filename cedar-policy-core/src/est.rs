@@ -177,7 +177,13 @@ impl TryFrom<cst::Policy> for Policy {
             }
         };
         let maybe_effect = policy.effect.to_effect();
-        let maybe_scope = policy.extract_scope();
+
+        let cst_type_slot_pairs = match &policy.template_annotations {
+            None => HashMap::new(),
+            Some(x) => x.to_cst_type_pairs()?,
+        };
+
+        let maybe_scope = policy.extract_scope(&cst_type_slot_pairs);
         let maybe_annotations = policy.get_ast_annotations(|v, l| {
             Some(Annotation {
                 val: v?,

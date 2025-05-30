@@ -187,7 +187,7 @@ pub fn parse_policy_or_template_to_est(text: &str) -> Result<est::Policy, err::P
 /// or its constructors
 pub(crate) fn parse_expr(ptext: &str) -> Result<ast::Expr, err::ParseErrors> {
     let cst = text_to_cst::parse_expr(ptext)?;
-    cst.to_expr::<ast::ExprBuilder<()>>()
+    cst.to_expr::<ast::ExprBuilder<()>>(&HashMap::new())
 }
 
 /// parse a RestrictedExpr
@@ -225,7 +225,7 @@ pub(crate) fn parse_internal_name(name: &str) -> Result<ast::InternalName, err::
 /// or its constructors
 pub(crate) fn parse_literal(val: &str) -> Result<ast::Literal, err::LiteralParseError> {
     let cst = text_to_cst::parse_primary(val)?;
-    match cst.to_expr::<ast::ExprBuilder<()>>() {
+    match cst.to_expr::<ast::ExprBuilder<()>>(&HashMap::new()) {
         Ok(ast) => match ast.expr_kind() {
             ast::ExprKind::Lit(v) => Ok(v.clone()),
             _ => Err(err::LiteralParseError::InvalidLiteral(ast)),
@@ -1029,6 +1029,23 @@ mod tests {
             expect_n_errors(src, &e, 2);
             expect_some_error_matches(src, &e, &slot_in_when_clause);
             expect_some_error_matches(src, &e, &slot_in_unless_clause);
+        });
+    }
+
+    #[test]
+    fn rand() {
+        let src = r#"
+            template(?blah: Action) =>
+            permit(principal, action, resource) when {
+                resource == ?blah
+            };
+            "#;
+        let error = ExpectedErrorMessageBuilder::error("`?blah` is not a valid template slot")
+            .help("a template slot may only be `?principal` or `?resource`")
+            .exactly_one_underline("?blah")
+            .build();
+        assert_matches!(parse_policy(None, src), Err(e) => {
+            expect_exactly_one_error(src, &e, &error);
         });
     }
 
