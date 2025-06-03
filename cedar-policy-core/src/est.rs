@@ -3252,7 +3252,7 @@ mod test {
         let err = est
             .clone()
             .link(&HashMap::from_iter([(
-                ast::SlotId::principal(),
+                ast::SlotId::principal(None),
                 EntityUidJson::new("XYZCorp::User", "12UA45"),
             )]))
             .expect_err("didn't fill all the slots");
@@ -3267,10 +3267,13 @@ mod test {
         let linked = est
             .link(&HashMap::from_iter([
                 (
-                    ast::SlotId::principal(),
+                    ast::SlotId::principal(None),
                     EntityUidJson::new("XYZCorp::User", "12UA45"),
                 ),
-                (ast::SlotId::resource(), EntityUidJson::new("Folder", "abc")),
+                (
+                    ast::SlotId::resource(None),
+                    EntityUidJson::new("Folder", "abc"),
+                ),
             ]))
             .expect("did fill all the slots");
         let expected_json = json!(
@@ -4278,7 +4281,7 @@ mod test {
                 }
             );
             let err = est.clone().link(&HashMap::from_iter([(
-                ast::SlotId::principal(),
+                ast::SlotId::principal(None),
                 EntityUidJson::new("User", "alice"),
             )]));
             assert_matches!(
@@ -4295,10 +4298,13 @@ mod test {
             let linked = est
                 .link(&HashMap::from_iter([
                     (
-                        ast::SlotId::principal(),
+                        ast::SlotId::principal(None),
                         EntityUidJson::new("User", "alice"),
                     ),
-                    (ast::SlotId::resource(), EntityUidJson::new("Folder", "abc")),
+                    (
+                        ast::SlotId::resource(None),
+                        EntityUidJson::new("Folder", "abc"),
+                    ),
                 ]))
                 .expect("did fill all the slots");
             let expected_json = json!(

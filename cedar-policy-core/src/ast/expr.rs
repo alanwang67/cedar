@@ -293,7 +293,7 @@ impl<T> Expr<T> {
         self.subexpressions()
             .filter_map(|exp| match &exp.expr_kind {
                 ExprKind::Slot(slotid) => Some(Slot {
-                    id: *slotid,
+                    id: slotid.clone(),
                     loc: exp.source_loc().into_maybe_loc(),
                 }),
                 _ => None,
@@ -1829,9 +1829,9 @@ mod test {
 
     #[test]
     fn slot_display() {
-        let e = Expr::slot(SlotId::principal());
+        let e = Expr::slot(SlotId::principal(None));
         assert_eq!(format!("{e}"), "?principal");
-        let e = Expr::slot(SlotId::resource());
+        let e = Expr::slot(SlotId::resource(None));
         assert_eq!(format!("{e}"), "?resource");
         let e = Expr::val(EntityUID::with_eid("eid"));
         assert_eq!(format!("{e}"), "test_entity_type::\"eid\"");
@@ -1839,20 +1839,20 @@ mod test {
 
     #[test]
     fn simple_slots() {
-        let e = Expr::slot(SlotId::principal());
-        let p = SlotId::principal();
-        let r = SlotId::resource();
-        let set: HashSet<SlotId> = HashSet::from_iter([p]);
+        let e = Expr::slot(SlotId::principal(None));
+        let p = SlotId::principal(None);
+        let r = SlotId::resource(None);
+        let set: HashSet<SlotId> = HashSet::from_iter([p.clone()]);
         assert_eq!(set, e.slots().map(|slot| slot.id).collect::<HashSet<_>>());
         let e = Expr::or(
-            Expr::slot(SlotId::principal()),
+            Expr::slot(SlotId::principal(None)),
             Expr::ite(
                 Expr::val(true),
-                Expr::slot(SlotId::resource()),
+                Expr::slot(SlotId::resource(None)),
                 Expr::val(false),
             ),
         );
-        let set: HashSet<SlotId> = HashSet::from_iter([p, r]);
+        let set: HashSet<SlotId> = HashSet::from_iter([p.clone(), r.clone()]);
         assert_eq!(set, e.slots().map(|slot| slot.id).collect::<HashSet<_>>());
     }
 
@@ -1903,8 +1903,8 @@ mod test {
                 Expr::var(Var::Principal),
             ),
             (
-                ExprBuilder::with_data(1).slot(SlotId::principal()),
-                Expr::slot(SlotId::principal()),
+                ExprBuilder::with_data(1).slot(SlotId::principal(None)),
+                Expr::slot(SlotId::principal(None)),
             ),
             (
                 ExprBuilder::with_data(1).ite(temp.clone(), temp.clone(), temp.clone()),

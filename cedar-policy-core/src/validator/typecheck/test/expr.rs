@@ -53,12 +53,12 @@ fn primitives_typecheck() {
 #[test]
 fn slot_typechecks() {
     assert_typechecks_empty_schema(
-        &Expr::slot(SlotId::principal()),
+        &Expr::slot(SlotId::principal(None)),
         &Type::any_entity_reference(),
     );
 
     assert_typechecks_empty_schema(
-        &Expr::slot(SlotId::resource()),
+        &Expr::slot(SlotId::resource(None)),
         &Type::any_entity_reference(),
     );
 }
@@ -77,7 +77,7 @@ fn slot_in_typechecks() {
         &Expr::binary_app(
             BinaryOp::In,
             Expr::val(EntityUID::with_eid_and_type("typename", "id").expect("Bad EUID")),
-            Expr::slot(SlotId::principal()),
+            Expr::slot(SlotId::principal(None)),
         ),
         &Type::primitive_boolean(),
         ValidationMode::Permissive,
@@ -87,7 +87,7 @@ fn slot_in_typechecks() {
         &Expr::binary_app(
             BinaryOp::In,
             Expr::val(EntityUID::with_eid_and_type("typename", "id").expect("Bad EUID")),
-            Expr::slot(SlotId::resource()),
+            Expr::slot(SlotId::resource(None)),
         ),
         &Type::primitive_boolean(),
         ValidationMode::Permissive,
@@ -112,7 +112,7 @@ fn slot_equals_typechecks() {
         &Expr::binary_app(
             BinaryOp::Eq,
             Expr::val(EntityUID::with_eid_and_type("typename", "edi").expect("EUID Failed")),
-            Expr::slot(SlotId::principal()),
+            Expr::slot(SlotId::principal(None)),
         ),
         &Type::primitive_boolean(),
         ValidationMode::Permissive,
@@ -122,7 +122,7 @@ fn slot_equals_typechecks() {
         &Expr::binary_app(
             BinaryOp::Eq,
             Expr::val(EntityUID::with_eid_and_type("typename", "edi").expect("EUID Failed")),
-            Expr::slot(SlotId::resource()),
+            Expr::slot(SlotId::resource(None)),
         ),
         &Type::primitive_boolean(),
         ValidationMode::Permissive,
@@ -132,11 +132,11 @@ fn slot_equals_typechecks() {
 #[test]
 fn slot_has_typechecks() {
     assert_typechecks_empty_schema(
-        &Expr::has_attr(Expr::slot(SlotId::principal()), "test".into()),
+        &Expr::has_attr(Expr::slot(SlotId::principal(None)), "test".into()),
         &Type::primitive_boolean(),
     );
     assert_typechecks_empty_schema(
-        &Expr::has_attr(Expr::slot(SlotId::resource()), "test".into()),
+        &Expr::has_attr(Expr::slot(SlotId::resource(None)), "test".into()),
         &Type::primitive_boolean(),
     );
 }

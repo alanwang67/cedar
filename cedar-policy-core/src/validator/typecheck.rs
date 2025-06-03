@@ -237,14 +237,14 @@ impl<'a> Typechecker<'a> {
             } => Box::new(
                 self.possible_slot_links(
                     t,
-                    SlotId::principal(),
+                    SlotId::principal(None),
                     principal,
                     t.principal_constraint().as_inner(),
                 )
                 .flat_map(move |p_slot| {
                     self.possible_slot_links(
                         t,
-                        SlotId::resource(),
+                        SlotId::resource(None),
                         resource,
                         t.resource_constraint().as_inner(),
                     )
@@ -398,7 +398,7 @@ impl<'a> SingleEnvTypechecker<'a> {
                     Type::any_entity_reference()
                 }))
                 .with_same_source_loc(e)
-                .slot(*slotid),
+                .slot(slotid.clone()),
             ),
 
             // Literal booleans get singleton type according to their value.

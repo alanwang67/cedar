@@ -106,10 +106,10 @@ mod test {
 
     #[test]
     fn slots() {
-        let e = Expr::slot(SlotId::principal());
+        let e = Expr::slot(SlotId::principal(None));
         let v: HashSet<_> = e.subexpressions().collect();
         assert_eq!(v.len(), 1);
-        assert!(v.contains(&Expr::slot(SlotId::principal())));
+        assert!(v.contains(&Expr::slot(SlotId::principal(None))));
     }
 
     #[test]

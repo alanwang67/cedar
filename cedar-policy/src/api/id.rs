@@ -406,12 +406,12 @@ impl AsRef<ast::SlotId> for SlotId {
 impl SlotId {
     /// Get the slot for `principal`
     pub fn principal() -> Self {
-        Self(ast::SlotId::principal())
+        Self(ast::SlotId::principal(None)) // Chore: This will need to be changed
     }
 
     /// Get the slot for `resource`
     pub fn resource() -> Self {
-        Self(ast::SlotId::resource())
+        Self(ast::SlotId::resource(None)) // Chore: This will need to be changed
     }
 }
 

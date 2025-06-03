@@ -453,7 +453,9 @@ impl<'e> Evaluator<'e> {
             ExprKind::Lit(lit) => Ok(lit.clone().into()),
             ExprKind::Slot(id) => slots
                 .get(id)
-                .ok_or_else(|| err::EvaluationError::unlinked_slot(*id, loc.into_maybe_loc()))
+                .ok_or_else(|| {
+                    err::EvaluationError::unlinked_slot(id.clone(), loc.into_maybe_loc())
+                })
                 .map(|euid| PartialValue::from(euid.clone())),
             ExprKind::Var(v) => match v {
                 Var::Principal => Ok(self.principal.evaluate(*v)),
@@ -4870,16 +4872,16 @@ pub(crate) mod test {
             EntityJsonParser::new(None, Extensions::none(), TCComputation::ComputeNow);
         let entities = eparser.from_json_str("[]").expect("empty slice");
         let evaluator = Evaluator::new(request, &entities, Extensions::none());
-        let e = Expr::slot(SlotId::principal());
+        let e = Expr::slot(SlotId::principal(None));
 
         let slots = HashMap::new();
         let r = evaluator.partial_interpret(&e, &slots);
         assert_matches!(r, Err(EvaluationError::UnlinkedSlot(UnlinkedSlotError { slot, .. })) => {
-            assert_eq!(slot, SlotId::principal());
+            assert_eq!(slot, SlotId::principal(None));
         });
 
         let mut slots = HashMap::new();
-        slots.insert(SlotId::principal(), EntityUID::with_eid("eid"));
+        slots.insert(SlotId::principal(None), EntityUID::with_eid("eid"));
         let r = evaluator.partial_interpret(&e, &slots);
         assert_matches!(r, Ok(e) => {
             assert_eq!(
@@ -4902,7 +4904,7 @@ pub(crate) mod test {
         pset.add_template(t)
             .expect("Template already present in PolicySet");
         let mut values = HashMap::new();
-        values.insert(SlotId::principal(), EntityUID::with_eid("p"));
+        values.insert(SlotId::principal(None), EntityUID::with_eid("p"));
         pset.link(
             PolicyID::from_string("template"),
             PolicyID::from_string("instance"),

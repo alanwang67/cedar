@@ -418,7 +418,7 @@ mod test {
         // a valid link is valid
         let mut values = HashMap::new();
         values.insert(
-            ast::SlotId::resource(),
+            ast::SlotId::resource(None),
             ast::EntityUID::from_components(
                 "some_namespace::Photo".parse().unwrap(),
                 ast::Eid::new("foo"),
@@ -437,7 +437,7 @@ mod test {
         // an invalid link results in an error
         let mut values = HashMap::new();
         values.insert(
-            ast::SlotId::resource(),
+            ast::SlotId::resource(None),
             ast::EntityUID::from_components(
                 "some_namespace::Undefined".parse().unwrap(),
                 ast::Eid::new("foo"),
@@ -471,7 +471,7 @@ mod test {
         // this is also an invalid link (not a valid resource type for any action in the schema)
         let mut values = HashMap::new();
         values.insert(
-            ast::SlotId::resource(),
+            ast::SlotId::resource(None),
             ast::EntityUID::from_components(
                 "some_namespace::User".parse().unwrap(),
                 ast::Eid::new("foo"),

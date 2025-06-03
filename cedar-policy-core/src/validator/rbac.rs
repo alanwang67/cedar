@@ -711,7 +711,7 @@ mod test {
         let undefined_euid: EntityUID = "Undefined::\"foo\""
             .parse()
             .expect("Expected entity UID to parse.");
-        let env = HashMap::from([(ast::SlotId::principal(), undefined_euid)]);
+        let env = HashMap::from([(ast::SlotId::principal(None), undefined_euid)]); // Chore: We will potentially need to change this
 
         let validator = Validator::new(schema);
         let notes: Vec<ValidationError> = validator

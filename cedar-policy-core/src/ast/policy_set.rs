@@ -665,7 +665,7 @@ mod test {
         pset.add_template(template).expect("Add failed");
 
         let env: HashMap<SlotId, EntityUID> = HashMap::from([(
-            SlotId::principal(),
+            SlotId::principal(None),
             r#"Test::"test""#.parse().expect("Failed to parse"),
         )]);
 
@@ -702,7 +702,7 @@ mod test {
             .expect("Failed to parse"),
         );
         let env1: HashMap<SlotId, EntityUID> = HashMap::from([(
-            SlotId::principal(),
+            SlotId::principal(None),
             r#"Test::"test1""#.parse().expect("Failed to parse"),
         )]);
 
@@ -717,7 +717,7 @@ mod test {
         );
 
         let env2: HashMap<SlotId, EntityUID> = HashMap::from([(
-            SlotId::principal(),
+            SlotId::principal(None),
             r#"Test::"test2""#.parse().expect("Failed to parse"),
         )]);
 
@@ -746,7 +746,7 @@ mod test {
             .expect("Failed to parse"),
         );
         let env3: HashMap<SlotId, EntityUID> = HashMap::from([(
-            SlotId::resource(),
+            SlotId::resource(None),
             r#"Test::"test3""#.parse().expect("Failed to parse"),
         )]);
 
@@ -907,7 +907,7 @@ mod test {
         set.link(
             PolicyID::from_string("template"),
             PolicyID::from_string("id"),
-            HashMap::from([(SlotId::principal(), EntityUID::with_eid("eid"))]),
+            HashMap::from([(SlotId::principal(None), EntityUID::with_eid("eid"))]),
         )
         .expect("Linking failed!");
         assert_eq!(set.static_policies().count(), 1);
@@ -962,8 +962,8 @@ mod test {
         s.add_template(t).unwrap();
 
         let mut vals = HashMap::new();
-        vals.insert(SlotId::principal(), EntityUID::with_eid("p"));
-        vals.insert(SlotId::resource(), EntityUID::with_eid("a"));
+        vals.insert(SlotId::principal(None), EntityUID::with_eid("p"));
+        vals.insert(SlotId::resource(None), EntityUID::with_eid("a"));
 
         s.link(tid.clone(), lid.clone(), vals).expect("Should link");
 
@@ -1026,7 +1026,7 @@ mod test {
 
         let mut v = HashMap::new();
         let entity = EntityUID::with_eid("eid");
-        v.insert(SlotId::principal(), entity.clone());
+        v.insert(SlotId::principal(None), entity.clone());
         s.link(template_id.clone(), link_id.clone(), v)
             .expect("Linking failed!");
 
@@ -1036,7 +1036,7 @@ mod test {
         assert_eq!(
             &entity,
             link.env()
-                .get(&SlotId::principal())
+                .get(&SlotId::principal(None))
                 .expect("Mapping was incorrect")
         );
     }
@@ -1110,7 +1110,7 @@ mod test {
         let r = pset.link(
             tid2.clone(),
             id3.clone(),
-            HashMap::from([(SlotId::principal(), EntityUID::with_eid("example"))]),
+            HashMap::from([(SlotId::principal(None), EntityUID::with_eid("example"))]),
         );
         r.expect("Linking failed");
 

@@ -2116,8 +2116,8 @@ impl TryFrom<&cst::Slot> for ast::SlotId {
 
     fn try_from(slot: &cst::Slot) -> std::result::Result<Self, Self::Error> {
         match slot {
-            cst::Slot::Principal => Ok(ast::SlotId::principal()),
-            cst::Slot::Resource => Ok(ast::SlotId::resource()),
+            cst::Slot::Principal => Ok(ast::SlotId::principal(None)), // Chore: We will need to change this
+            cst::Slot::Resource => Ok(ast::SlotId::resource(None)),
             cst::Slot::Other(slot) => Err(ToASTErrorKind::InvalidSlot(slot.clone())),
         }
     }
@@ -2126,8 +2126,8 @@ impl TryFrom<&cst::Slot> for ast::SlotId {
 impl From<ast::SlotId> for cst::Slot {
     fn from(slot: ast::SlotId) -> cst::Slot {
         match slot {
-            ast::SlotId(ast::ValidSlotId::Principal) => cst::Slot::Principal,
-            ast::SlotId(ast::ValidSlotId::Resource) => cst::Slot::Resource,
+            ast::SlotId(ast::ValidSlotId::Principal(_)) => cst::Slot::Principal,
+            ast::SlotId(ast::ValidSlotId::Resource(_)) => cst::Slot::Resource,
         }
     }
 }

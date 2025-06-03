@@ -293,8 +293,8 @@ impl Template {
             Ok(())
         } else {
             Err(LinkingError::from_unbound_and_extras(
-                unbound.into_iter().map(|slot| slot.id),
-                extra.into_iter().copied(),
+                unbound.into_iter().map(|slot| slot.id.clone()),
+                extra.into_iter().cloned(),
             ))
         }
     }
@@ -510,7 +510,7 @@ impl Policy {
     /// in it.
     pub fn principal_constraint(&self) -> PrincipalConstraint {
         let constraint = self.template.principal_constraint().clone();
-        match self.values.get(&SlotId::principal()) {
+        match self.values.get(&SlotId::principal(None)) {
             None => constraint,
             Some(principal) => constraint.with_filled_slot(Arc::new(principal.clone())),
         }
@@ -528,7 +528,7 @@ impl Policy {
     /// in it.
     pub fn resource_constraint(&self) -> ResourceConstraint {
         let constraint = self.template.resource_constraint().clone();
-        match self.values.get(&SlotId::resource()) {
+        match self.values.get(&SlotId::resource(None)) {
             None => constraint,
             Some(resource) => constraint.with_filled_slot(Arc::new(resource.clone())),
         }
@@ -708,7 +708,7 @@ mod hashing_tests {
 
     fn build_template_linked_policy() -> LiteralPolicy {
         let mut map = HashMap::new();
-        map.insert(SlotId::principal(), EntityUID::with_eid("eid"));
+        map.insert(SlotId::principal(None), EntityUID::with_eid("eid"));
         LiteralPolicy {
             template_id: PolicyID::from_string("template"),
             link_id: Some(PolicyID::from_string("id")),
@@ -2057,7 +2057,7 @@ mod test {
             let t = Arc::new(template);
             let env = t
                 .slots()
-                .map(|slot| (slot.id, EntityUID::with_eid("eid")))
+                .map(|slot| (slot.id.clone(), EntityUID::with_eid("eid")))
                 .collect();
             let _ = Template::link(t, PolicyID::from_string("id"), env).expect("Linking failed");
         }
@@ -2116,10 +2116,10 @@ mod test {
             Expr::val(true),
         ));
         let mut m = HashMap::new();
-        m.insert(SlotId::resource(), EntityUID::with_eid("eid"));
+        m.insert(SlotId::resource(None), EntityUID::with_eid("eid"));
         assert_matches!(Template::link(t, iid, m), Err(LinkingError::ArityError { unbound_values, extra_values }) => {
-            assert_eq!(unbound_values, vec![SlotId::principal()]);
-            assert_eq!(extra_values, vec![SlotId::resource()]);
+            assert_eq!(unbound_values, vec![SlotId::principal(None)]);
+            assert_eq!(extra_values, vec![SlotId::resource(None)]);
         });
     }
 
@@ -2138,13 +2138,13 @@ mod test {
             Expr::val(true),
         ));
         assert_matches!(Template::link(t.clone(), iid.clone(), HashMap::new()), Err(LinkingError::ArityError { unbound_values, extra_values }) => {
-            assert_eq!(unbound_values, vec![SlotId::resource(), SlotId::principal()]);
+            assert_eq!(unbound_values, vec![SlotId::resource(None), SlotId::principal(None)]);
             assert_eq!(extra_values, vec![]);
         });
         let mut m = HashMap::new();
-        m.insert(SlotId::principal(), EntityUID::with_eid("eid"));
+        m.insert(SlotId::principal(None), EntityUID::with_eid("eid"));
         assert_matches!(Template::link(t, iid, m), Err(LinkingError::ArityError { unbound_values, extra_values }) => {
-            assert_eq!(unbound_values, vec![SlotId::resource()]);
+            assert_eq!(unbound_values, vec![SlotId::resource(None)]);
             assert_eq!(extra_values, vec![]);
         });
     }
@@ -2165,17 +2165,17 @@ mod test {
         ));
 
         let mut m = HashMap::new();
-        m.insert(SlotId::principal(), EntityUID::with_eid("theprincipal"));
-        m.insert(SlotId::resource(), EntityUID::with_eid("theresource"));
+        m.insert(SlotId::principal(None), EntityUID::with_eid("theprincipal"));
+        m.insert(SlotId::resource(None), EntityUID::with_eid("theresource"));
 
         let r = Template::link(t, iid.clone(), m).expect("Should Succeed");
         assert_eq!(r.id(), &iid);
         assert_eq!(
-            r.env().get(&SlotId::principal()),
+            r.env().get(&SlotId::principal(None)),
             Some(&EntityUID::with_eid("theprincipal"))
         );
         assert_eq!(
-            r.env().get(&SlotId::resource()),
+            r.env().get(&SlotId::resource(None)),
             Some(&EntityUID::with_eid("theresource"))
         );
     }
@@ -2320,12 +2320,12 @@ mod test {
     fn euid_into_expr() {
         let e = EntityReference::Slot(None);
         assert_eq!(
-            e.into_expr(SlotId::principal()),
-            Expr::slot(SlotId::principal())
+            e.into_expr(SlotId::principal(None)),
+            Expr::slot(SlotId::principal(None))
         );
         let e = EntityReference::euid(Arc::new(EntityUID::with_eid("eid")));
         assert_eq!(
-            e.into_expr(SlotId::principal()),
+            e.into_expr(SlotId::principal(None)),
             Expr::val(EntityUID::with_eid("eid"))
         );
     }

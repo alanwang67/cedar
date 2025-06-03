@@ -56,8 +56,11 @@ impl PolicySet {
             .filter_map(|link| {
                 if &link.new_id == id {
                     self.get_template(&link.template_id).and_then(|template| {
-                        let unwrapped_est_vals: HashMap<SlotId, EntityUidJson> =
-                            link.values.iter().map(|(k, v)| (*k, v.into())).collect();
+                        let unwrapped_est_vals: HashMap<SlotId, EntityUidJson> = link
+                            .values
+                            .iter()
+                            .map(|(k, v)| (k.clone(), v.into()))
+                            .collect();
                         template.link(&unwrapped_est_vals).ok()
                     })
                 } else {
@@ -237,7 +240,7 @@ mod test {
         assert_eq!(link.template().id(), &PolicyID::from_string("template"));
         assert_eq!(
             link.env(),
-            &HashMap::from_iter([(SlotId::principal(), r#"User::"bob""#.parse().unwrap())])
+            &HashMap::from_iter([(SlotId::principal(None), r#"User::"bob""#.parse().unwrap())])
         );
         assert_eq!(
             ast_policy_set

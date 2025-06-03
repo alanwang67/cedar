@@ -28,6 +28,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use thiserror::Error;
 
+use crate::entities::SchemaType;
 use crate::parser::err::{ParseError, ParseErrors, ToASTError, ToASTErrorKind};
 use crate::parser::{AsLocRef, IntoMaybeLoc, Loc, MaybeLoc};
 use crate::FromNormalizedStr;
@@ -283,37 +284,38 @@ impl<'de> Deserialize<'de> for InternalName {
 /// Clone is O(1).
 // This simply wraps a separate enum -- currently [`ValidSlotId`] -- in case we
 // want to generalize later
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct SlotId(pub(crate) ValidSlotId);
 
 impl SlotId {
-    /// Get the slot for `principal`
-    pub fn principal() -> Self {
-        Self(ValidSlotId::Principal)
+    /// Create a `principal` slot
+    pub fn principal(t: Option<SchemaType>) -> Self {
+        Self(ValidSlotId::Principal(t))
     }
 
-    /// Get the slot for `resource`
-    pub fn resource() -> Self {
-        Self(ValidSlotId::Resource)
+    /// Create a `resource` slot
+    pub fn resource(t: Option<SchemaType>) -> Self {
+        Self(ValidSlotId::Resource(t))
     }
 
     /// Check if a slot represents a principal
     pub fn is_principal(&self) -> bool {
-        matches!(self, Self(ValidSlotId::Principal))
+        matches!(self, Self(ValidSlotId::Principal(_)))
     }
 
     /// Check if a slot represents a resource
     pub fn is_resource(&self) -> bool {
-        matches!(self, Self(ValidSlotId::Resource))
+        matches!(self, Self(ValidSlotId::Resource(_)))
     }
 }
 
+// Chore: We need to take a look at this
 impl From<PrincipalOrResource> for SlotId {
     fn from(v: PrincipalOrResource) -> Self {
         match v {
-            PrincipalOrResource::Principal => SlotId::principal(),
-            PrincipalOrResource::Resource => SlotId::resource(),
+            PrincipalOrResource::Principal => SlotId::principal(None),
+            PrincipalOrResource::Resource => SlotId::resource(None),
         }
     }
 }
@@ -325,19 +327,28 @@ impl std::fmt::Display for SlotId {
 }
 
 /// Two possible variants for Slots
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Educe, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
+#[educe(Hash)]
 pub(crate) enum ValidSlotId {
     #[serde(rename = "?principal")]
-    Principal,
+    Principal(
+        #[serde(skip)]
+        #[educe(Hash(ignore))]
+        Option<SchemaType>,
+    ),
     #[serde(rename = "?resource")]
-    Resource,
+    Resource(
+        #[serde(skip)]
+        #[educe(Hash(ignore))]
+        Option<SchemaType>,
+    ),
 }
 
 impl std::fmt::Display for ValidSlotId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            ValidSlotId::Principal => "principal",
-            ValidSlotId::Resource => "resource",
+            ValidSlotId::Principal(_) => "principal",
+            ValidSlotId::Resource(_) => "resource",
         };
         write!(f, "?{s}")
     }
@@ -361,13 +372,13 @@ mod vars_test {
     // Make sure the vars always parse correctly
     #[test]
     fn vars_correct() {
-        SlotId::principal();
-        SlotId::resource();
+        SlotId::principal(None);
+        SlotId::resource(None);
     }
 
     #[test]
     fn display() {
-        assert_eq!(format!("{}", SlotId::principal()), "?principal")
+        assert_eq!(format!("{}", SlotId::principal(None)), "?principal")
     }
 }
 
