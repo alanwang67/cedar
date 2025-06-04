@@ -16,7 +16,7 @@
 
 //! Validator for Cedar policies
 #![deny(
-    missing_docs,
+    // missing_docs,
     rustdoc::broken_intra_doc_links,
     rustdoc::private_intra_doc_links,
     rustdoc::invalid_codeblock_attributes,

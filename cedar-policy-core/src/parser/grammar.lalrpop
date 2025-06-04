@@ -22,6 +22,26 @@ use lalrpop_util::{ParseError, ErrorRecovery};
 use crate::parser::*;
 use crate::parser::err::{RawErrorRecovery, RawUserError};
 use crate::parser::node::Node;
+use crate::validator::cedar_schema::ast::{
+    Path,
+    EntityDecl,
+    StandardEntityDecl,
+    EnumEntityDecl,
+    Declaration,
+    Namespace,
+    Schema as ASchema,
+    Type as SType,
+    AttrDecl,
+    ActionDecl,
+    PR,
+    AppDecl,
+    TypeDecl,
+    PrimitiveType,
+    QualName,
+    PRAppDecl,
+    deduplicate_annotations,
+    Annotated,
+};
 
 /// `errors` collects generated errors.
 ///
@@ -73,6 +93,10 @@ match {
     r"[0-9]+" => NUMBER,
     r#""(\\.|[^"\\])*""# => STRINGLIT,
 
+    // generalized templates
+    "template",
+    "=>",
+
     // other tokens used (or not currently used, in the case of e.g. % and =)
     "@",
     ".", ",", ";", ":", "::",
@@ -104,16 +128,27 @@ Annotation: Node<Option<cst::Annotation>> = {
     <l:@L> "@" <key:AnyIdent> <value: ("(" <Str> ")")?> <r:@R> => Node::with_maybe_source_loc(Some(cst::Annotation{key,value}), maybe_loc!(is_fast, Loc::new(l..r, Arc::clone(src))))
 }
 
+// SlotTypePair := {name ':' type}
+SlotTypePair: Node<Option<cst::SlotTypePair>> = {
+    <l:@L> <slot: Slot> ":" <t: Ident> <r:@R> => Node::with_source_loc(Some(cst::SlotTypePair{slot, t}), Loc::new(l..r, Arc::clone(src)))
+}
+
+// TemplateTypes := {'template' '(' ( SlotTypePair { ',' SlotTypePair } ) ')' '=>'}
+TemplateTypes: Node<Option<cst::TemplateTypes>> = {
+    <l:@L> "template" "(" <values: Comma<SlotTypePair>> ")" "=>" <r:@R> => Node::with_source_loc(Some(cst::TemplateTypes{ values }), Loc::new(l..r, Arc::clone(src)))
+}
+
 // Policy := "label" ('permit' | 'forbid') '(' {VariableDef} ')' {Cond} ;
 pub Policy: Node<Option<cst::Policy>> = {
     <l:@L>
     <annotations:Annotation*>
+    <template_types: TemplateTypes?>
     <effect:AnyIdent>
     "(" <variables: Comma<VariableDef>> ")"
     <conds:Cond*>
     ";"
     <r:@R>
-    => Node::with_maybe_source_loc(Some(cst::Policy::Policy(cst::PolicyImpl{ annotations,effect,variables,conds })), maybe_loc!(is_fast, Loc::new(l..r, Arc::clone(src)))),
+    => Node::with_maybe_source_loc(Some(cst::Policy::Policy(cst::PolicyImpl{ annotations,template_types,effect,variables,conds })), maybe_loc!(is_fast, Loc::new(l..r, Arc::clone(src)))),
     <l:@L> <err:!> ";" <r:@R> => {
         // Tolerant AST creates a valid CST node representing the unparsable policy
         #[cfg(feature = "tolerant-ast")]
