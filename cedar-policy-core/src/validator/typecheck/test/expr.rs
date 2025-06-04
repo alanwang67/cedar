@@ -1577,3 +1577,23 @@ mod datetime {
         );
     }
 }
+
+mod generalized_slots {
+    use crate::validator::json_schema::{Type, TypeVariant};
+    
+    use crate::{
+        ast::{BinaryOp, EntityUID, Expr, Pattern, PatternElem, SlotId, Var},
+    };
+
+    use super::{
+        assert_sets_equal, assert_typecheck_fails_empty_schema, assert_typechecks_empty_schema,
+    };
+
+    #[test]
+    fn slot_typechecks() {
+        assert_typechecks_empty_schema(
+            &Expr::slot(SlotId::principal(Some(Type::Type { ty: TypeVariant::Boolean, loc: None }))),
+            &&crate::validator::types::Type::primitive_boolean(),
+        );
+    }
+}
