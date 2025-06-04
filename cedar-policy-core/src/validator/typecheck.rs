@@ -24,7 +24,7 @@ mod typecheck_answer;
 use itertools::Itertools;
 pub(crate) use typecheck_answer::TypecheckAnswer;
 
-use std::{borrow::Cow, collections::HashSet, iter::zip};
+use std::{any::Any, borrow::Cow, collections::HashSet, iter::zip};
 
 use crate::validator::{
     extension_schema::ExtensionFunctionType,
@@ -46,6 +46,8 @@ use crate::{
     expr_builder::ExprBuilder as _,
 };
 use crate::{fuzzy_match::fuzzy_search, parser::IntoMaybeLoc};
+use crate::extensions::Extensions;
+use std::collections::HashMap;
 
 const REQUIRED_STACK_SPACE: usize = 1024 * 100;
 
@@ -272,7 +274,19 @@ impl<'a> Typechecker<'a> {
         var: &'a EntityType,
         constraint: &PrincipalOrResourceConstraint,
     ) -> Box<dyn Iterator<Item = Option<EntityType>> + 'a> {
-        if t.slots().any(|t_slot| t_slot.id == slot_id) {
+        if let Some(t) = slot_id.get_type() {
+            let tt = crate::validator::try_jsonschema_type_into_validator_type(t, Extensions::all_available(), None); 
+            let resolved_common_type = tt.unwrap().resolve_common_type_refs(&HashMap::new()).unwrap().ty; 
+            let et = match resolved_common_type {
+                Type::EntityOrRecord(e) => match e {
+                    EntityRecordKind::Entity(et) => et.into_single_entity(),
+                    _ => panic!("?principal and ?resource can only be annotated with entity types")
+                }
+                _ => panic!("?principal and ?resource can only be annotated with entity types")
+            };
+            Box::new(std::iter::once(et))
+        }
+        else if t.slots().any(|t_slot| t_slot.id == slot_id) {
             let all_entity_types = self.schema.entity_types();
             match constraint {
                 // The condition is `var = ?slot`, so the policy can only apply

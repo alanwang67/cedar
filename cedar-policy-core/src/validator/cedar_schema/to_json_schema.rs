@@ -114,7 +114,7 @@ pub fn cedar_type_to_json_type(ty: Node<Type>) -> json_schema::Type<RawName> {
         ty: variant,
         loc: ty.loc,
     }
-}
+} 
 
 // Split namespaces into two groups: named namespaces and the implicit unqualified namespace
 // The rhs of the tuple will be [`None`] if there are no items in the unqualified namespace.

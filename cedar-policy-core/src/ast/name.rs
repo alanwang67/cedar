@@ -32,6 +32,7 @@ use crate::entities::SchemaType;
 use crate::parser::err::{ParseError, ParseErrors, ToASTError, ToASTErrorKind};
 use crate::parser::{AsLocRef, IntoMaybeLoc, Loc, MaybeLoc};
 use crate::FromNormalizedStr;
+use crate::validator::json_schema::Type;
 
 /// Represents the name of an entity type, function, etc.
 /// The name may include namespaces.
@@ -290,12 +291,12 @@ pub struct SlotId(pub(crate) ValidSlotId);
 
 impl SlotId {
     /// Create a `principal` slot
-    pub fn principal(t: Option<SchemaType>) -> Self {
+    pub fn principal(t: Option<Type<InternalName>>) -> Self {
         Self(ValidSlotId::Principal(t))
     }
 
     /// Create a `resource` slot
-    pub fn resource(t: Option<SchemaType>) -> Self {
+    pub fn resource(t: Option<Type<InternalName>>) -> Self {
         Self(ValidSlotId::Resource(t))
     }
 
@@ -307,6 +308,14 @@ impl SlotId {
     /// Check if a slot represents a resource
     pub fn is_resource(&self) -> bool {
         matches!(self, Self(ValidSlotId::Resource(_)))
+    }
+
+    /// If there is a type stored with the slot return it 
+    pub fn get_type(&self) -> Option<Type<InternalName>> {
+        match &self.0 {
+            ValidSlotId::Principal(t) => t.clone(),
+            ValidSlotId::Resource(t) => t.clone(),
+        }
     }
 }
 
@@ -334,13 +343,13 @@ pub(crate) enum ValidSlotId {
     Principal(
         #[serde(skip)]
         #[educe(Hash(ignore))]
-        Option<SchemaType>,
+        Option<Type<InternalName>>,
     ),
     #[serde(rename = "?resource")]
     Resource(
         #[serde(skip)]
         #[educe(Hash(ignore))]
-        Option<SchemaType>,
+        Option<Type<InternalName>>,
     ),
 }
 

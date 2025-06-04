@@ -157,7 +157,8 @@ impl ValidatorSchemaFragment<ConditionalName, ConditionalName> {
 #[derive(Clone, Debug, Educe)]
 #[educe(Eq, PartialEq)]
 pub struct ValidatorType {
-    ty: Type,
+    /// Self explanatory
+    pub ty: Type,
     #[cfg(feature = "extended-schema")]
     loc: MaybeLoc,
 }
@@ -171,6 +172,7 @@ impl ValidatorType {
             loc: None,
         }
     }
+
     /// New validator type with source location
     #[cfg(feature = "extended-schema")]
     pub fn new_with_loc(ty: Type, loc: MaybeLoc) -> Self {
