@@ -5184,13 +5184,13 @@ mod issue_604 {
     }
 }
 
-mod issue_606 {
+mod test_est_template_slot_not_in_scope_in_condition_check {
     use super::{expect_err, ExpectedErrorMessageBuilder};
     use crate::{PolicyId, Template};
     use cool_asserts::assert_matches;
 
     #[test]
-    fn est_template() {
+    fn est_template1() {
         let est_json = serde_json::json!({
             "effect": "permit",
             "principal": { "op": "All" },
@@ -5210,17 +5210,50 @@ mod issue_606 {
         });
 
         let tid = PolicyId::new("t0");
-        // We should get an error here after trying to construct a template with a slot in the condition
+
         assert_matches!(Template::from_json(Some(tid), est_json.clone()), Err(e) => {
             expect_err(
                 &est_json,
                 &miette::Report::new(e),
                 &ExpectedErrorMessageBuilder::error("error deserializing a policy/template from JSON")
-                    .source("found template slot ?principal in a `when` clause")
-                    .help("slots are currently unsupported in `when` clauses")
+                    .source("found ?principal slot in the `when` clause, but slot not found in the scope")
+                    .help("to use ?principal slot in the `when` clause it must appear in the scope")
                     .build(),
             );
         });
+    }
+
+    #[test]
+    fn est_template2() {
+        let est_json = serde_json::json!({
+            "effect": "permit",
+            "principal": {
+                "op": "==",
+                "slot": "?principal"
+            },
+            "action": { "op": "All" },
+            "resource": { "op": "All" },
+            "conditions": [
+                {
+                    "kind": "when",
+                    "body": {
+                        "==": {
+                            "left": { "Var": "principal" },
+                            "right": { "Slot": "?principal" }
+                        }
+                    }
+                }
+            ]
+        });
+
+        let tid = PolicyId::new("t0");
+
+        let template = Template::from_json(Some(tid), est_json.clone());
+        assert_eq!(
+            template.unwrap().to_string(),
+            "permit(principal == ?principal, action, resource) when { principal == ?principal };"
+                .to_string()
+        );
     }
 }
 
