@@ -24,6 +24,7 @@ use thiserror::Error;
 
 use super::{
     ast::Schema,
+    ast::Type,
     err::{self, ParseError, ParseErrors, SchemaWarning, ToJsonSchemaErrors},
     to_json_schema::cedar_schema_to_json_schema,
 };
@@ -116,8 +117,15 @@ pub fn parse_cedar_schema_fragment<'a>(
     CedarSchemaParseErrors,
 > {
     let ast: Schema = parse_collect_errors(&*SCHEMA_PARSER, grammar::SchemaParser::parse, src)?;
+    println!("{:?}", ast);
     let tuple = cedar_schema_to_json_schema(ast, extensions)?;
     Ok(tuple)
+}
+
+/// Parse a type 
+pub fn parse_type(id: &str) -> Result<Type, err::ParseErrors> {
+    let t= parse_collect_errors(&*TYPE_PARSER, grammar::TypeParser::parse, id)?;
+    Ok(t.into_inner().0)
 }
 
 /// Parse schema from text

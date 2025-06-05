@@ -22,26 +22,12 @@ use lalrpop_util::{ParseError, ErrorRecovery};
 use crate::parser::*;
 use crate::parser::err::{RawErrorRecovery, RawUserError};
 use crate::parser::node::Node;
+use crate::ast::{Id, AnyId, Annotations};
 use crate::validator::cedar_schema::ast::{
-    Path,
-    EntityDecl,
-    StandardEntityDecl,
-    EnumEntityDecl,
-    Declaration,
-    Namespace,
-    Schema as ASchema,
     Type as SType,
-    AttrDecl,
-    ActionDecl,
-    PR,
-    AppDecl,
-    TypeDecl,
-    PrimitiveType,
-    QualName,
-    PRAppDecl,
-    deduplicate_annotations,
-    Annotated,
 };
+use smol_str::ToSmolStr;
+use crate::validator::cedar_schema::parser::parse_type; 
 
 /// `errors` collects generated errors.
 ///
@@ -86,16 +72,16 @@ match {
     "?resource" => RESOURCE_SLOT,
     r"\?[_a-zA-Z][_a-zA-Z0-9]*" => OTHER_SLOT,
 
+    // generalized templates
+    "template",
+    "=>",
+
     // data input
     r"[_a-zA-Z][_a-zA-Z0-9]*" => IDENTIFIER,
     // The `NUMBER` token is a positive integer.
     // Negative number literals are negation operations.
     r"[0-9]+" => NUMBER,
     r#""(\\.|[^"\\])*""# => STRINGLIT,
-
-    // generalized templates
-    "template",
-    "=>",
 
     // other tokens used (or not currently used, in the case of e.g. % and =)
     "@",
@@ -106,6 +92,7 @@ match {
     "+", "-", "*", "/", "%",
     "!",
     "=",
+    "?"
 }
 
 Comma<E>: Vec<E> = {
@@ -130,7 +117,18 @@ Annotation: Node<Option<cst::Annotation>> = {
 
 // SlotTypePair := {name ':' type}
 SlotTypePair: Node<Option<cst::SlotTypePair>> = {
-    <l:@L> <slot: Slot> ":" <t: Ident> <r:@R> => Node::with_source_loc(Some(cst::SlotTypePair{slot, t}), Loc::new(l..r, Arc::clone(src)))
+    <l:@L> <slot: Slot> ":" <t: IDENTIFIER> <r:@R> => {
+        match parse_type(t.into()) {
+            Ok(t) => {
+                let t = Node::with_maybe_source_loc(Some(t), maybe_loc!(is_fast, Loc::new(l..r, Arc::clone(src))));
+                (Node::with_source_loc(Some(cst::SlotTypePair{slot, t}), Loc::new(l..r, Arc::clone(src))))
+            },
+            Err(e) => (Node::with_source_loc(None, Loc::new(l..r, Arc::clone(src))))
+            // ParseError::User {
+            //     error: Node::with_maybe_source_loc(format!("Not a valid type: {e}"), maybe_loc!(is_fast, Loc::new(l..r, Arc::clone(src))))
+            // },
+        }
+    }
 }
 
 // TemplateTypes := {'template' '(' ( SlotTypePair { ',' SlotTypePair } ) ')' '=>'}

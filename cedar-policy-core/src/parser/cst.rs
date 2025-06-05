@@ -41,7 +41,7 @@ pub struct SlotTypePair {
     /// name
     pub slot: Node<Slot>,
     /// type
-    pub t: Node<Ident>, // Node<Type>,
+    pub t: Node<Type>,
 }
 
 /// Template annotation for generalized templates

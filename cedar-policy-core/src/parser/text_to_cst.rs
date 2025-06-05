@@ -51,7 +51,6 @@ fn parse_collect_errors<'a, P, T>(
 ) -> Result<T, err::ParseErrors> {
     let mut errs = Vec::new();
     let result = parse(parser, &mut errs, &Arc::from(text), is_fast, text);
-
     let errors = errs
         .into_iter()
         .map(|rc| err::ToCSTError::from_raw_err_recovery(rc, Arc::from(text)))

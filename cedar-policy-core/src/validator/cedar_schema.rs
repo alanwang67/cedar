@@ -18,7 +18,7 @@
 
 pub mod ast;
 pub use ast::Path;
-mod err;
+pub mod err;
 pub mod fmt;
 pub mod parser;
 pub(crate) mod test;
