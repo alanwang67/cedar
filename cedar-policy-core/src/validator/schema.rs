@@ -670,7 +670,7 @@ impl ValidatorSchema {
         }
 
         let resolver = CommonTypeResolver::new(&common_types);
-        let common_types: HashMap<&InternalName, ValidatorType> = resolver.resolve(extensions)?;
+        let common_types: HashMap<&InternalName, ValidatorType> = resolver.resolve(extensions)?; // Chore: Look at what is going on here for the mapping from common types to validator types
 
         // Invert the `parents` relation defined by entities and action so far
         // to get a `children` relation.

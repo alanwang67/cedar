@@ -41,11 +41,13 @@ use super::{cst, AsLocRef, IntoMaybeLoc, Loc, MaybeLoc};
 #[cfg(feature = "tolerant-ast")]
 use crate::ast::expr_allows_errors::ExprWithErrsBuilder;
 use crate::ast::{
-    self, ActionConstraint, CallStyle, Integer, PatternElem, PolicySetError, PrincipalConstraint,
-    PrincipalOrResourceConstraint, ResourceConstraint, UnreservedId,
+    self, ActionConstraint, CallStyle, Integer, InternalName, PatternElem, PolicySetError,
+    PrincipalConstraint, PrincipalOrResourceConstraint, ResourceConstraint, UnreservedId,
 };
 use crate::expr_builder::ExprBuilder;
 use crate::fuzzy_match::fuzzy_search_limited;
+use crate::validator::cedar_schema::to_json_schema::template_cedar_type_to_json_type;
+use crate::validator::json_schema::Type;
 use itertools::{Either, Itertools};
 use nonempty::nonempty;
 use nonempty::NonEmpty;
@@ -317,6 +319,9 @@ impl Node<Option<cst::Policy>> {
         let maybe_annotations = policy.get_ast_annotations(|value, loc| {
             ast::Annotation::with_optional_value(value, loc.into_maybe_loc())
         });
+
+        // get the template type annotations
+        let maybe_template_type_annotation = policy.get_type_annotations()?;
 
         // convert scope
         let maybe_scope = policy.extract_scope();
@@ -679,6 +684,30 @@ impl cst::PolicyImpl {
         match ParseErrors::flatten(all_errs) {
             Some(errs) => Err(errs),
             None => Ok(annotations),
+        }
+    }
+
+    /// Get type annotations from `cst::TemplateTypeAnnotation`
+    pub fn get_type_annotations(&self) -> Result<BTreeMap<ast::Id, Type<InternalName>>> {
+        // Chore: Do better refactoring of this function
+        let mut type_annotations: BTreeMap<ast::Id, Type<InternalName>> = BTreeMap::new();
+        // let mut all_errs: Vec<ParseError> = vec![];
+        match self.template_type_annotation.clone() {
+            Some(n) => {
+                let slot_type_pairs = n.try_as_inner()?.values.clone();
+                for node in slot_type_pairs {
+                    let slot_type_pair = node.try_as_inner()?;
+                    let s = slot_type_pair.slot.try_as_inner()?;
+                    let t =
+                        Node::with_maybe_source_loc(slot_type_pair.t.try_as_inner()?.clone(), None);
+                    type_annotations.insert(
+                        s.to_smolstr().parse().unwrap(),
+                        template_cedar_type_to_json_type(t),
+                    );
+                }
+                Ok(type_annotations)
+            }
+            None => Ok(type_annotations),
         }
     }
 }

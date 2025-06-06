@@ -19,7 +19,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    ast::{Annotations, Id, Name, UnreservedId},
+    ast::{Annotations, Id, InternalName, Name, UnreservedId},
     extensions::Extensions,
     parser::{AsLocRef, IntoMaybeLoc, Loc, MaybeLoc, Node},
 };
@@ -107,6 +107,28 @@ pub fn cedar_type_to_json_type(ty: Node<Type>) -> json_schema::Type<RawName> {
         },
         Type::Record(fields) => json_schema::TypeVariant::Record(json_schema::RecordType {
             attributes: fields.into_iter().map(convert_attr_decl).collect(),
+            additional_attributes: false,
+        }),
+    };
+    json_schema::Type::Type {
+        ty: variant,
+        loc: ty.loc,
+    }
+}
+
+/// Convert a `Type` into the JSON representation of the type.
+/// This should only be used when dealing with generalized templates
+pub fn template_cedar_type_to_json_type(ty: Node<Type>) -> json_schema::Type<InternalName> {
+    // Chore: Provide a better name
+    let variant = match ty.node {
+        Type::Set(t) => json_schema::TypeVariant::Set {
+            element: Box::new(template_cedar_type_to_json_type(*t)),
+        },
+        Type::Ident(p) => json_schema::TypeVariant::EntityOrCommon {
+            type_name: InternalName::from(p),
+        },
+        Type::Record(fields) => json_schema::TypeVariant::Record(json_schema::RecordType {
+            attributes: fields.into_iter().map(template_convert_attr_decl).collect(),
             additional_attributes: false,
         }),
     };
@@ -460,6 +482,23 @@ fn convert_attr_decl(
         attr.node.data.name.node,
         json_schema::TypeOfAttribute {
             ty: cedar_type_to_json_type(attr.node.data.ty),
+            required: attr.node.data.required,
+            annotations: attr.node.annotations.into(),
+            #[cfg(feature = "extended-schema")]
+            loc: attr.loc,
+        },
+    )
+}
+
+/// Convert an attribute type from an `AttrDecl`
+fn template_convert_attr_decl(
+    // Chore: Provide a better name
+    attr: Node<Annotated<AttrDecl>>,
+) -> (SmolStr, json_schema::TypeOfAttribute<InternalName>) {
+    (
+        attr.node.data.name.node,
+        json_schema::TypeOfAttribute {
+            ty: template_cedar_type_to_json_type(attr.node.data.ty),
             required: attr.node.data.required,
             annotations: attr.node.annotations.into(),
             #[cfg(feature = "extended-schema")]
