@@ -1172,7 +1172,7 @@ mod tests {
             "@if(\"a\")",
             "unexpected end of input",
             "",
-            "expected `@` or identifier",
+            "expected `@`, `template`, or identifier",
         );
         // AST actually requires `principal` (`action`, `resource`, resp.). In
         // the `principal` case we also claim to expect `)` because an empty scope

@@ -18,6 +18,7 @@
 
 mod ast;
 pub use ast::Path;
+pub use ast::Type;
 mod err;
 pub mod fmt;
 pub mod parser;
