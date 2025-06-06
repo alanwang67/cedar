@@ -1577,3 +1577,119 @@ mod datetime {
         );
     }
 }
+
+mod generalized_templates {
+    use crate::validator::{json_schema, schema::RawName, types::Type};
+
+    use crate::{
+        ast::{Expr, SlotId, ValidSlotId, Var},
+        extensions::Extensions,
+    };
+    use smol_str::SmolStr;
+
+    use crate::validator::ValidationMode;
+
+    use super::{assert_typechecks_empty_schema, assert_typechecks_for_mode};
+
+    use crate::ast::InternalName;
+
+    #[test]
+    fn generalized_slot_with_attribute_access_typechecks() {
+        let schema: json_schema::NamespaceDefinition<RawName> = serde_json::from_str(
+            r#"
+        {
+            "entityTypes": {
+                "User": {
+                    "shape": {
+                        "type": "Record",
+                        "additionalAttributes": false,
+                        "attributes": {
+                            "name": { "type": "String", "required": true},
+                            "age": { "type": "Long", "required": true},
+                            "favorite": { "type": "Entity", "name": "Photo", "required": true}
+                        }
+                    }
+                },
+                "Photo": {
+                    "shape": {
+                        "type": "Record",
+                        "additionalAttributes": false,
+                        "attributes": {
+                            "file_type": { "type": "String", "required": true},
+                            "owner": { "type": "Entity", "name": "User", "required": true}
+                        }
+                    }
+                }
+            },
+            "actions": {
+                "view_photo": {
+                    "memberOf": [],
+                    "appliesTo": {
+                        "principalTypes": ["User"],
+                        "resourceTypes": ["Photo"]
+                    }
+                }
+            }
+        }"#,
+        )
+        .expect("Expected valid schema");
+        let t0 = json_schema::Type::<InternalName>::Type {
+            ty: json_schema::TypeVariant::<InternalName>::Entity {
+                name: "User".parse().unwrap(),
+            },
+            loc: None,
+        };
+        let generalized_slot0 = Expr::slot(SlotId(ValidSlotId::GeneralizedSlot(
+            "generalized_slot".parse().unwrap(),
+            t0,
+        )));
+
+        let t1 = json_schema::Type::<InternalName>::Type {
+            ty: json_schema::TypeVariant::<InternalName>::Entity {
+                name: "User".parse().unwrap(),
+            },
+            loc: None,
+        };
+        let generalized_slot1 = Expr::slot(SlotId(ValidSlotId::Principal(Some(t1))));
+
+        let expr0 = &Expr::is_eq(
+            Expr::get_attr(generalized_slot0, SmolStr::new(&"age")),
+            Expr::val(1),
+        );
+
+        let expr1 = &Expr::is_eq(
+            Expr::get_attr(generalized_slot1, SmolStr::new(&"age")),
+            Expr::val(1),
+        );
+
+        assert_typechecks_for_mode(
+            schema.clone(),
+            &expr0,
+            &Type::primitive_boolean(),
+            ValidationMode::Strict,
+        );
+
+        assert_typechecks_for_mode(
+            schema.clone(),
+            &expr1,
+            &Type::primitive_boolean(),
+            ValidationMode::Strict,
+        );
+    }
+
+    #[test]
+    fn generalized_slot_add_typechecks() {
+        let t = json_schema::Type::<InternalName>::Type {
+            ty: json_schema::TypeVariant::<InternalName>::Long,
+            loc: None,
+        };
+
+        let generalized_slot = Expr::slot(SlotId(ValidSlotId::GeneralizedSlot(
+            "generalized_slot".parse().unwrap(),
+            t,
+        )));
+        let expr = &Expr::add(generalized_slot, Expr::val(1));
+
+        assert_typechecks_empty_schema(&expr, &Type::primitive_long());
+    }
+}

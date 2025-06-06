@@ -38,6 +38,7 @@ use crate::validator::{
     ValidationError, ValidationMode, ValidationWarning,
 };
 
+use crate::extensions::Extensions;
 use crate::{
     ast::{
         BinaryOp, EntityType, EntityUID, Expr, ExprBuilder, ExprKind, Literal, Name, PolicyID,
@@ -46,6 +47,7 @@ use crate::{
     expr_builder::ExprBuilder as _,
 };
 use crate::{fuzzy_match::fuzzy_search, parser::IntoMaybeLoc};
+use std::collections::HashMap;
 
 const REQUIRED_STACK_SPACE: usize = 1024 * 100;
 
@@ -383,19 +385,63 @@ impl<'a> SingleEnvTypechecker<'a> {
             // Template Slots, always has to be an entity.
             ExprKind::Slot(slotid) => TypecheckAnswer::success(
                 ExprBuilder::with_data(Some(if slotid.is_principal() {
-                    self.request_env
-                        .principal_slot()
-                        .clone()
-                        .map(Type::named_entity_reference)
-                        .unwrap_or_else(Type::any_entity_reference)
+                    match slotid.get_type_of_slot() {
+                        Some(t) => {
+                            let tt = crate::validator::try_jsonschema_type_into_validator_type(
+                                t,
+                                Extensions::all_available(),
+                                None,
+                            );
+                            Into::<Type>::into(
+                                tt.unwrap()
+                                    .resolve_common_type_refs(&HashMap::new())
+                                    .unwrap(),
+                            )
+                        }
+                        None => self
+                            .request_env
+                            .principal_slot()
+                            .clone()
+                            .map(Type::named_entity_reference)
+                            .unwrap_or_else(Type::any_entity_reference),
+                    }
                 } else if slotid.is_resource() {
-                    self.request_env
-                        .resource_slot()
-                        .clone()
-                        .map(Type::named_entity_reference)
-                        .unwrap_or_else(Type::any_entity_reference)
+                    match slotid.get_type_of_slot() {
+                        Some(t) => {
+                            let tt = crate::validator::try_jsonschema_type_into_validator_type(
+                                t,
+                                Extensions::all_available(),
+                                None,
+                            );
+                            Into::<Type>::into(
+                                tt.unwrap()
+                                    .resolve_common_type_refs(&HashMap::new())
+                                    .unwrap(),
+                            )
+                        }
+                        None => self
+                            .request_env
+                            .resource_slot()
+                            .clone()
+                            .map(Type::named_entity_reference)
+                            .unwrap_or_else(Type::any_entity_reference),
+                    }
                 } else {
-                    Type::any_entity_reference()
+                    match slotid.get_type_of_slot() {
+                        Some(t) => {
+                            let tt = crate::validator::try_jsonschema_type_into_validator_type(
+                                t,
+                                Extensions::all_available(),
+                                None,
+                            );
+                            Into::<Type>::into(
+                                tt.unwrap()
+                                    .resolve_common_type_refs(&HashMap::new())
+                                    .unwrap(),
+                            )
+                        }
+                        None => Type::any_entity_reference(),
+                    }
                 }))
                 .with_same_source_loc(e)
                 .slot(slotid.clone()),

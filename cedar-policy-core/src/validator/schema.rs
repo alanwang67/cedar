@@ -171,10 +171,17 @@ impl ValidatorType {
             loc: None,
         }
     }
+
     /// New validator type with source location
     #[cfg(feature = "extended-schema")]
     pub fn new_with_loc(ty: Type, loc: MaybeLoc) -> Self {
         Self { ty, loc }
+    }
+}
+
+impl Into<Type> for ValidatorType {
+    fn into(self) -> Type {
+        self.ty
     }
 }
 

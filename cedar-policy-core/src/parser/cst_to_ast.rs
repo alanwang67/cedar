@@ -325,7 +325,8 @@ impl Node<Option<cst::Policy>> {
         let maybe_conds = ParseErrors::transpose(policy.conds.iter().map(|c| {
             let (e, is_when) = c.to_expr::<ast::ExprBuilder<()>>()?;
             let (p, _, r) = policy.extract_scope()?;
-            let slots_in_scope: HashSet<ast::Slot> = HashSet::from_iter(p.as_expr().slots().chain(r.as_expr().slots()));
+            let slots_in_scope: HashSet<ast::Slot> =
+                HashSet::from_iter(p.as_expr().slots().chain(r.as_expr().slots()));
 
             let slot_errs = e
                 .slots()
@@ -2135,10 +2136,11 @@ impl TryFrom<&cst::Slot> for ast::SlotId {
 impl From<ast::SlotId> for cst::Slot {
     fn from(slot: ast::SlotId) -> cst::Slot {
         match slot {
-
-            ast::SlotId(ast::ValidSlotId::Principal(_)) => cst::Slot::Principal, 
+            ast::SlotId(ast::ValidSlotId::Principal(_)) => cst::Slot::Principal,
             ast::SlotId(ast::ValidSlotId::Resource(_)) => cst::Slot::Resource,
-            ast::SlotId(ast::ValidSlotId::GeneralizedSlot(n, _)) => cst::Slot::Other(n.to_smolstr()),
+            ast::SlotId(ast::ValidSlotId::GeneralizedSlot(n, _)) => {
+                cst::Slot::Other(n.to_smolstr())
+            }
         }
     }
 }

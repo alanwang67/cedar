@@ -30,9 +30,9 @@ use thiserror::Error;
 
 use crate::parser::err::{ParseError, ParseErrors, ToASTError, ToASTErrorKind};
 use crate::parser::{AsLocRef, IntoMaybeLoc, Loc, MaybeLoc};
-use crate::FromNormalizedStr;
-use crate::validator::json_schema::Type; 
+use crate::validator::json_schema::Type;
 use crate::validator::RawName;
+use crate::FromNormalizedStr;
 
 /// Represents the name of an entity type, function, etc.
 /// The name may include namespaces.
@@ -291,12 +291,12 @@ pub struct SlotId(pub(crate) ValidSlotId);
 impl SlotId {
     /// Get the slot for `principal`
     pub fn principal() -> Self {
-        Self(ValidSlotId::Principal(None)) // Chore: We will make it None for now but it will be easy to change this to take in a type in the future 
+        Self(ValidSlotId::Principal(None)) // Chore: We will make it None for now but it will be easy to change this to take in a type in the future
     }
 
     /// Get the slot for `resource`
     pub fn resource() -> Self {
-        Self(ValidSlotId::Resource(None)) // Chore: We will make it None for now but it will be easy to change this to take in a type in the future 
+        Self(ValidSlotId::Resource(None)) // Chore: We will make it None for now but it will be easy to change this to take in a type in the future
     }
 
     /// Check if a slot represents a principal
@@ -309,9 +309,18 @@ impl SlotId {
         matches!(self, Self(ValidSlotId::Resource(_)))
     }
 
-    /// Check if a slot is a generalized slot 
+    /// Check if a slot is a generalized slot
     pub fn is_generalized_slot(&self) -> bool {
         matches!(self, Self(ValidSlotId::GeneralizedSlot(_, _)))
+    }
+
+    /// If there is slot is typed return the type
+    pub fn get_type_of_slot(&self) -> Option<Type<InternalName>> {
+        match self.0.clone() {
+            ValidSlotId::Principal(t) => t,
+            ValidSlotId::Resource(t) => t,
+            ValidSlotId::GeneralizedSlot(_, t) => Some(t),
+        }
     }
 }
 
@@ -331,13 +340,21 @@ impl std::fmt::Display for SlotId {
 }
 
 /// Three possible variants for Slots
-#[derive(Debug, Clone, Educe, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)] 
+#[derive(Debug, Clone, Educe, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 #[educe(Hash)]
 pub(crate) enum ValidSlotId {
     #[serde(rename = "?principal")]
-    Principal(#[serde(skip)] #[educe(Hash(ignore))] Option<Type<InternalName>>),
+    Principal(
+        #[serde(skip)]
+        #[educe(Hash(ignore))]
+        Option<Type<InternalName>>,
+    ),
     #[serde(rename = "?resource")]
-    Resource(#[serde(skip)] #[educe(Hash(ignore))] Option<Type<InternalName>>),
+    Resource(
+        #[serde(skip)]
+        #[educe(Hash(ignore))]
+        Option<Type<InternalName>>,
+    ),
     GeneralizedSlot(Id, #[educe(Hash(ignore))] Type<InternalName>),
 }
 
@@ -396,7 +413,7 @@ impl From<UnreservedId> for Name {
     }
 }
 
-impl From<RawName> for InternalName { 
+impl From<RawName> for InternalName {
     fn from(value: RawName) -> Self {
         value.qualify_with(None)
     }

@@ -813,11 +813,12 @@ mod tests {
                 resource == ?resource
             };
             "#;
-        let slot_in_when_clause =
-            ExpectedErrorMessageBuilder::error("found ?resource slot in the `when` clause, but slot not found in the scope")
-                .help("to use ?resource slot in the `when` clause it must appear in the scope")
-                .exactly_one_underline("?resource")
-                .build();
+        let slot_in_when_clause = ExpectedErrorMessageBuilder::error(
+            "found ?resource slot in the `when` clause, but slot not found in the scope",
+        )
+        .help("to use ?resource slot in the `when` clause it must appear in the scope")
+        .exactly_one_underline("?resource")
+        .build();
         let unexpected_template = ExpectedErrorMessageBuilder::error(
             "expected a static policy, got a template containing the slot ?resource",
         )
@@ -852,11 +853,12 @@ mod tests {
                 resource == ?principal
             };
             "#;
-        let slot_in_when_clause =
-            ExpectedErrorMessageBuilder::error("found ?principal slot in the `when` clause, but slot not found in the scope")
-                .help("to use ?principal slot in the `when` clause it must appear in the scope")
-                .exactly_one_underline("?principal")
-                .build();
+        let slot_in_when_clause = ExpectedErrorMessageBuilder::error(
+            "found ?principal slot in the `when` clause, but slot not found in the scope",
+        )
+        .help("to use ?principal slot in the `when` clause it must appear in the scope")
+        .exactly_one_underline("?principal")
+        .build();
         let unexpected_template = ExpectedErrorMessageBuilder::error(
             "expected a static policy, got a template containing the slot ?principal",
         )
@@ -1029,11 +1031,12 @@ mod tests {
                 resource == ?resource
             };
             "#;
-        let slot_in_when_clause =
-            ExpectedErrorMessageBuilder::error("found ?resource slot in the `when` clause, but slot not found in the scope")
-                .help("to use ?resource slot in the `when` clause it must appear in the scope")
-                .exactly_one_underline("?resource")
-                .build();
+        let slot_in_when_clause = ExpectedErrorMessageBuilder::error(
+            "found ?resource slot in the `when` clause, but slot not found in the scope",
+        )
+        .help("to use ?resource slot in the `when` clause it must appear in the scope")
+        .exactly_one_underline("?resource")
+        .build();
         let slot_in_unless_clause = ExpectedErrorMessageBuilder::error(
             "found ?resource slot in the `unless` clause, but slot not found in the scope",
         )
