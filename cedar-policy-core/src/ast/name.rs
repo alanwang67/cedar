@@ -31,6 +31,8 @@ use thiserror::Error;
 use crate::parser::err::{ParseError, ParseErrors, ToASTError, ToASTErrorKind};
 use crate::parser::{AsLocRef, IntoMaybeLoc, Loc, MaybeLoc};
 use crate::FromNormalizedStr;
+use crate::validator::json_schema::Type; 
+use crate::validator::RawName;
 
 /// Represents the name of an entity type, function, etc.
 /// The name may include namespaces.
@@ -280,32 +282,36 @@ impl<'de> Deserialize<'de> for InternalName {
 }
 
 /// Identifier for a slot
-/// Clone is O(1).
 // This simply wraps a separate enum -- currently [`ValidSlotId`] -- in case we
 // want to generalize later
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct SlotId(pub(crate) ValidSlotId);
 
 impl SlotId {
     /// Get the slot for `principal`
     pub fn principal() -> Self {
-        Self(ValidSlotId::Principal)
+        Self(ValidSlotId::Principal(None)) // Chore: We will make it None for now but it will be easy to change this to take in a type in the future 
     }
 
     /// Get the slot for `resource`
     pub fn resource() -> Self {
-        Self(ValidSlotId::Resource)
+        Self(ValidSlotId::Resource(None)) // Chore: We will make it None for now but it will be easy to change this to take in a type in the future 
     }
 
     /// Check if a slot represents a principal
     pub fn is_principal(&self) -> bool {
-        matches!(self, Self(ValidSlotId::Principal))
+        matches!(self, Self(ValidSlotId::Principal(_)))
     }
 
     /// Check if a slot represents a resource
     pub fn is_resource(&self) -> bool {
-        matches!(self, Self(ValidSlotId::Resource))
+        matches!(self, Self(ValidSlotId::Resource(_)))
+    }
+
+    /// Check if a slot is a generalized slot 
+    pub fn is_generalized_slot(&self) -> bool {
+        matches!(self, Self(ValidSlotId::GeneralizedSlot(_, _)))
     }
 }
 
@@ -324,20 +330,23 @@ impl std::fmt::Display for SlotId {
     }
 }
 
-/// Two possible variants for Slots
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+/// Three possible variants for Slots
+#[derive(Debug, Clone, Educe, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)] 
+#[educe(Hash)]
 pub(crate) enum ValidSlotId {
     #[serde(rename = "?principal")]
-    Principal,
+    Principal(#[serde(skip)] #[educe(Hash(ignore))] Option<Type<InternalName>>),
     #[serde(rename = "?resource")]
-    Resource,
+    Resource(#[serde(skip)] #[educe(Hash(ignore))] Option<Type<InternalName>>),
+    GeneralizedSlot(Id, #[educe(Hash(ignore))] Type<InternalName>),
 }
 
 impl std::fmt::Display for ValidSlotId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            ValidSlotId::Principal => "principal",
-            ValidSlotId::Resource => "resource",
+            ValidSlotId::Principal(_) => "principal",
+            ValidSlotId::Resource(_) => "resource",
+            ValidSlotId::GeneralizedSlot(n, _) => &n.to_smolstr(),
         };
         write!(f, "?{s}")
     }
@@ -384,6 +393,12 @@ pub struct Name(pub(crate) InternalName);
 impl From<UnreservedId> for Name {
     fn from(value: UnreservedId) -> Self {
         Self::unqualified_name(value)
+    }
+}
+
+impl From<RawName> for InternalName { 
+    fn from(value: RawName) -> Self {
+        value.qualify_with(None)
     }
 }
 

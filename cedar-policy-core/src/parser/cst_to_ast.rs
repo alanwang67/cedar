@@ -2135,8 +2135,10 @@ impl TryFrom<&cst::Slot> for ast::SlotId {
 impl From<ast::SlotId> for cst::Slot {
     fn from(slot: ast::SlotId) -> cst::Slot {
         match slot {
-            ast::SlotId(ast::ValidSlotId::Principal) => cst::Slot::Principal,
-            ast::SlotId(ast::ValidSlotId::Resource) => cst::Slot::Resource,
+
+            ast::SlotId(ast::ValidSlotId::Principal(_)) => cst::Slot::Principal, 
+            ast::SlotId(ast::ValidSlotId::Resource(_)) => cst::Slot::Resource,
+            ast::SlotId(ast::ValidSlotId::GeneralizedSlot(n, _)) => cst::Slot::Other(n.to_smolstr()),
         }
     }
 }
