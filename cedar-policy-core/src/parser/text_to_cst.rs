@@ -57,7 +57,7 @@ fn parse_collect_errors<'a, P, T>(
     };
     let mut errs = Vec::new();
     let result = parse(parser, &mut errs, &shared_src, keep_src, text);
-
+    println!("{:?}", errs);
     let errors = errs
         .into_iter()
         .map(|rc| err::ToCSTError::from_raw_err_recovery(rc, Arc::clone(&shared_src)))

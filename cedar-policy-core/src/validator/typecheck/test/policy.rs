@@ -84,7 +84,7 @@ fn simple_schema_file() -> json_schema::NamespaceDefinition<RawName> {
                         "additionalAttributes": false,
                         "attributes": { }
                     }
-                }
+                },
             },
             "actions": {
                 "view_photo": {
@@ -98,13 +98,46 @@ fn simple_schema_file() -> json_schema::NamespaceDefinition<RawName> {
                     "memberOf": [],
                     "appliesTo": {
                         "principalTypes": ["User"],
-                        "resourceTypes": ["Group"]
-                    }
+                        "resourceTypes": ["Group"],
+                    "context": {
+                        "type": "Record",
+                        "attributes": {
+                            "date": { "type": "datetime" },
+                        }
+                    },
+                }
                 }
             }
         }
     ))
     .expect("Expected valid schema")
+}
+
+#[test]
+fn generalized_template() {
+    let s = simple_schema_file();
+    let src = r#"
+        template(?date: Long) => 
+        permit(
+            principal == ?principal, 
+            action == Action::"delete_group",
+            resource
+        ) when { ?date == 1 };"#;
+
+    // println!("{:?}", text_to_cst::parse_policy(src).unwrap());
+
+    let t = crate::parser::text_to_cst::parse_policy(src)
+        .expect("parse_error")
+        .to_template(crate::ast::PolicyID::from_string("i0"))
+        .unwrap_or_else(|errs| {
+            panic!(
+                "Failed to create a policy template: {:?}",
+                miette::Report::new(errs)
+            );
+        });
+    assert_policy_typechecks(
+        simple_schema_file(),
+        t) 
 }
 
 #[track_caller] // report the caller's location as the location of the panic, not the location in this function

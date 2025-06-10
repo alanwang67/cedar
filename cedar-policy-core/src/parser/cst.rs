@@ -15,7 +15,7 @@
  */
 
 use crate::validator::cedar_schema::Type;
-use smol_str::SmolStr;
+use smol_str::{SmolStr, ToSmolStr};
 
 // shortcut because we need CST nodes to potentially be empty,
 // for example, if part of it failed the parse, we can
@@ -407,7 +407,7 @@ pub enum Literal {
 }
 
 /// Template Slots
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Slot {
     /// Slot for Principal Constraints
     Principal,

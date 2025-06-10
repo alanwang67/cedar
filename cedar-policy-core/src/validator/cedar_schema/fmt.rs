@@ -700,10 +700,11 @@ namespace TinyTodo {
         let test_schema_str =
             std::fs::read_to_string("src/validator/cedar_schema/testfiles/example.cedarschema")
                 .expect("missing test schema");
-        println!("{}", test_schema_str);
+        // println!("{}", test_schema_str);
 
         let (f, _) = Fragment::from_cedarschema_str(&test_schema_str, Extensions::all_available())
             .expect("test schema is valid");
+        // println!("{:#?}", f);
         // assert test schema file is already formatted
         assert_eq!(
             f.to_cedarschema().expect("test schema can be displayed"),

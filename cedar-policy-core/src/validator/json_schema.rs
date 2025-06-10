@@ -1391,6 +1391,7 @@ impl Type<ConditionalName> {
         self,
         all_defs: &AllDefs,
     ) -> std::result::Result<Type<InternalName>, TypeNotDefinedError> {
+        // println!("{:#?}", self);
         match self {
             Self::Type { ty, loc } => Ok(Type::Type {
                 ty: ty.fully_qualify_type_references(all_defs)?,
@@ -2007,9 +2008,12 @@ impl TypeVariant<ConditionalName> {
             Self::Entity { name } => Ok(TypeVariant::Entity {
                 name: name.resolve(all_defs)?,
             }),
-            Self::EntityOrCommon { type_name } => Ok(TypeVariant::EntityOrCommon {
+            Self::EntityOrCommon { type_name } => {
+
+                // println!("{:#?}", type_name);
+                Ok(TypeVariant::EntityOrCommon {
                 type_name: type_name.resolve(all_defs)?,
-            }),
+            })},
             Self::Set { element } => Ok(TypeVariant::Set {
                 element: Box::new(element.fully_qualify_type_references(all_defs)?),
             }),
@@ -2428,7 +2432,7 @@ mod test {
             "actions": {}
         });
         let schema: NamespaceDefinition<RawName> = serde_json::from_value(src).unwrap();
-        println!("{:#?}", schema);
+        // println!("{:#?}", schema);
     }
 
     #[test]

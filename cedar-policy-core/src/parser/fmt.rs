@@ -528,7 +528,7 @@ mod test {
         let revert = format!("{}", cst1);
         let cstnode2 = text_to_cst::parse_policies(&revert).expect("parse fail");
         let cst2 = cstnode2.as_inner().expect("no data");
-        println!("{:#}", cst2);
+        // println!("{:#}", cst2);
         assert!(cst1 == cst2);
     }
     #[test]
@@ -588,7 +588,7 @@ mod test {
         .expect("parse fail");
         let cst1 = cstnode1.as_inner().expect("no data");
         let revert = format!("{}", cst1);
-        println!("{:#}", cst1);
+        // println!("{:#}", cst1);
         let cstnode2 = text_to_cst::parse_policies(&revert).expect("parse fail");
         let cst2 = cstnode2.as_inner().expect("no data");
         assert!(cst1 == cst2);

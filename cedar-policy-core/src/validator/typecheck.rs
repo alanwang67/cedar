@@ -384,14 +384,19 @@ impl<'a> SingleEnvTypechecker<'a> {
             }
             // Template Slots, always has to be an entity.
             ExprKind::Slot(slotid) => TypecheckAnswer::success(
+
                 ExprBuilder::with_data(Some(if slotid.is_principal() {
                     match slotid.get_type_of_slot() {
                         Some(t) => {
+                            // println!("{:?}", slotid);
                             let tt = crate::validator::try_jsonschema_type_into_validator_type(
                                 t,
                                 Extensions::all_available(),
                                 None,
                             );
+
+                            // let resolver = CommonTypeResolver::new(&HashMap::new());
+                            // let common_types: HashMap<&InternalName, ValidatorType> = resolver.resolve(extensions)?; 
                             Into::<Type>::into(
                                 tt.unwrap()
                                     .resolve_common_type_refs(&HashMap::new())
@@ -434,11 +439,17 @@ impl<'a> SingleEnvTypechecker<'a> {
                                 Extensions::all_available(),
                                 None,
                             );
+                            // println!("{:?}", Into::<Type>::into(
+                            //     tt.unwrap()
+                            //         .resolve_common_type_refs(&HashMap::new())
+                            //         .unwrap(),
+                            // ));
                             Into::<Type>::into(
                                 tt.unwrap()
                                     .resolve_common_type_refs(&HashMap::new())
                                     .unwrap(),
                             )
+                            // Type::any_entity_reference()
                         }
                         None => Type::any_entity_reference(),
                     }
@@ -1287,6 +1298,7 @@ impl<'a> SingleEnvTypechecker<'a> {
                             .binary_app(*op, expr_ty_arg1.clone(), expr_ty_arg2.clone());
                         let t1 = expr_ty_arg1.data().as_ref();
                         let t2 = expr_ty_arg2.data().as_ref();
+                        // println!("{:?} {:?}", t1, t2);
                         match (t1, t2) {
                             (Some(Type::Never), Some(Type::Never)) => TypecheckAnswer::fail(expr),
                             (Some(Type::Never), Some(other)) => {

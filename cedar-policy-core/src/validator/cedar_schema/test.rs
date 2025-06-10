@@ -2938,4 +2938,17 @@ namespace TinyTodo {
             Ok(_)
         );
     }
+
+    use crate::validator::{
+        cedar_schema::{
+            err::ToJsonSchemaError,
+            to_json_schema::cedar_schema_to_json_schema,
+        },
+        json_schema,
+        schema::test::utils::collect_warnings,
+        types::{EntityLUB, EntityRecordKind, Primitive, Type},
+        ValidatorSchema,
+    };
+        use crate::{est::Annotations, extensions::Extensions};
+
 }

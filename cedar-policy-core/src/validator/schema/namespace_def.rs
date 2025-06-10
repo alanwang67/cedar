@@ -28,7 +28,7 @@ use crate::{
     evaluator::RestrictedEvaluator,
     extensions::Extensions,
     fuzzy_match::fuzzy_search,
-    parser::{AsLocRef, IntoMaybeLoc, Loc, MaybeLoc},
+    parser::{AsLocRef, IntoMaybeLoc, Loc, MaybeLoc}, validator::schema,
 };
 use itertools::Itertools;
 use nonempty::{nonempty, NonEmpty};
@@ -130,7 +130,7 @@ impl ValidatorNamespaceDef<ConditionalName, ConditionalName> {
         action_behavior: ActionBehavior,
         extensions: &Extensions<'_>,
     ) -> crate::validator::err::Result<ValidatorNamespaceDef<ConditionalName, ConditionalName>>
-    {
+    {   
         // Return early with an error if actions cannot be in groups or have
         // attributes, but the schema contains action groups or attributes.
         Self::check_action_behavior(&namespace_def, action_behavior)?;
@@ -143,7 +143,6 @@ impl ValidatorNamespaceDef<ConditionalName, ConditionalName> {
             ActionsDef::from_raw_actions(namespace_def.actions, namespace.as_ref(), extensions)?;
         let entity_types =
             EntityTypesDef::from_raw_entity_types(namespace_def.entity_types, namespace.as_ref())?;
-
         Ok(ValidatorNamespaceDef {
             namespace,
             common_types,
@@ -1048,6 +1047,7 @@ pub(crate) fn try_jsonschema_type_into_validator_type(
     extensions: &Extensions<'_>,
     loc: MaybeLoc,
 ) -> crate::validator::err::Result<WithUnresolvedCommonTypeRefs<ValidatorType>> {
+    // println!("{:?}",schema_ty);
     match schema_ty {
         json_schema::Type::Type {
             ty: json_schema::TypeVariant::String,
