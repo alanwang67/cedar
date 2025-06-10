@@ -176,6 +176,11 @@ impl ValidatorType {
     pub fn new_with_loc(ty: Type, loc: MaybeLoc) -> Self {
         Self { ty, loc }
     }
+
+    /// Returns the type of validator type
+    pub fn get_type(self) -> Type {
+        self.ty
+    }
 }
 
 /// Represents common types - in extended-schema we maintain the set of common type names as well as source location data

@@ -24,12 +24,17 @@ mod typecheck_answer;
 use itertools::Itertools;
 pub(crate) use typecheck_answer::TypecheckAnswer;
 
-use std::{borrow::Cow, collections::HashSet, iter::zip};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    iter::zip,
+};
 
 use crate::validator::{
     extension_schema::ExtensionFunctionType,
     extensions::ExtensionSchemas,
     schema::ValidatorSchema,
+    try_jsonschema_type_into_validator_type,
     types::{
         AttributeType, Capability, CapabilitySet, EntityRecordKind, OpenTag, Primitive, RequestEnv,
         Type,
@@ -38,13 +43,15 @@ use crate::validator::{
     ValidationError, ValidationMode, ValidationWarning,
 };
 
+use crate::extensions::Extensions;
 use crate::{
     ast::{
         BinaryOp, EntityType, EntityUID, Expr, ExprBuilder, ExprKind, Literal, Name, PolicyID,
-        PrincipalOrResourceConstraint, SlotId, Template, UnaryOp, Var,
+        PrincipalOrResourceConstraint, ScopePosition, SlotId, Template, UnaryOp, Var,
     },
     expr_builder::ExprBuilder as _,
 };
+
 use crate::{fuzzy_match::fuzzy_search, parser::IntoMaybeLoc};
 
 const REQUIRED_STACK_SPACE: usize = 1024 * 100;
@@ -394,6 +401,38 @@ impl<'a> SingleEnvTypechecker<'a> {
                         .clone()
                         .map(Type::named_entity_reference)
                         .unwrap_or_else(Type::any_entity_reference)
+                } else if slotid.is_generalized_slot() {
+                    match slotid.get_type() {
+                        Some(t) => {
+                            let unresolved = try_jsonschema_type_into_validator_type(
+                                t,
+                                Extensions::all_available(),
+                                None,
+                            )
+                            .unwrap();
+                            let validator_type = unresolved
+                                .resolve_common_type_refs(&HashMap::new())
+                                .unwrap();
+                            validator_type.get_type() // Chore: Look into if ValidatorType is needed, this seems to be a feature only for the extended-schema
+                        }
+                        None => match slotid.extract_scope_position() {
+                            Some(t) => match t {
+                                ScopePosition::Principal => self
+                                    .request_env
+                                    .principal_slot()
+                                    .clone()
+                                    .map(Type::named_entity_reference)
+                                    .unwrap_or_else(Type::any_entity_reference),
+                                ScopePosition::Resource => self
+                                    .request_env
+                                    .resource_slot()
+                                    .clone()
+                                    .map(Type::named_entity_reference)
+                                    .unwrap_or_else(Type::any_entity_reference),
+                            },
+                            None => Type::any_entity_reference(), // Chore: potentially just throw an error, this is an invariant violation (every slot in condition must have a type)
+                        },
+                    }
                 } else {
                     Type::any_entity_reference()
                 }))

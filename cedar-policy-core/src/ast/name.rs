@@ -323,10 +323,26 @@ impl SlotId {
             self,
             Self(ValidSlotId::GeneralizedSlot {
                 name: _,
-                in_scope: _,
+                scope_position: _,
                 t: _
             })
         )
+    }
+
+    /// Returns the scope position of the slot
+    pub fn extract_scope_position(&self) -> Option<ScopePosition> {
+        match &self.0 {
+            ValidSlotId::GeneralizedSlot { scope_position, .. } => *scope_position,
+            _ => None,
+        }
+    }
+
+    /// Returns the type of a generalized slot if it has one
+    pub fn get_type(&self) -> Option<Type<InternalName>> {
+        match &self.0 {
+            ValidSlotId::GeneralizedSlot { t, .. } => t.clone(),
+            _ => None,
+        }
     }
 }
 
@@ -345,6 +361,13 @@ impl std::fmt::Display for SlotId {
     }
 }
 
+/// Enum for scope position of user defined slots
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
+pub(crate) enum ScopePosition {
+    Principal,
+    Resource,
+}
+
 /// Three possible variants for Slots
 #[derive(Debug, Clone, Educe, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 #[educe(Hash)]
@@ -353,10 +376,10 @@ pub(crate) enum ValidSlotId {
     Principal,
     #[serde(rename = "?resource")]
     Resource,
-    // invariant: in_scope == false means t must be Some
+    // invariant: scope_position == None means t must be Some
     GeneralizedSlot {
         name: Id,
-        in_scope: bool,
+        scope_position: Option<ScopePosition>,
         #[serde(skip)]
         #[educe(Hash(ignore))]
         t: Option<Type<InternalName>>,
