@@ -32,6 +32,9 @@ use crate::parser::err::{ParseError, ParseErrors, ToASTError, ToASTErrorKind};
 use crate::parser::{AsLocRef, IntoMaybeLoc, Loc, MaybeLoc};
 use crate::FromNormalizedStr;
 
+use crate::validator::json_schema::Type;
+use crate::validator::RawName;
+
 /// Represents the name of an entity type, function, etc.
 /// The name may include namespaces.
 /// Clone is O(1).
@@ -70,6 +73,12 @@ impl TryFrom<InternalName> for Id {
         } else {
             Err(())
         }
+    }
+}
+
+impl From<RawName> for InternalName {
+    fn from(value: RawName) -> Self {
+        value.qualify_with(None)
     }
 }
 
@@ -283,7 +292,7 @@ impl<'de> Deserialize<'de> for InternalName {
 /// Clone is O(1).
 // This simply wraps a separate enum -- currently [`ValidSlotId`] -- in case we
 // want to generalize later
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct SlotId(pub(crate) ValidSlotId);
 
@@ -325,12 +334,20 @@ impl std::fmt::Display for SlotId {
 }
 
 /// Two possible variants for Slots
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Educe, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
+#[educe(Hash)]
 pub(crate) enum ValidSlotId {
     #[serde(rename = "?principal")]
     Principal,
     #[serde(rename = "?resource")]
     Resource,
+    GeneralizedSlot(
+        Id,
+        bool,
+        #[serde(skip)]
+        #[educe(Hash(ignore))]
+        Option<Type<InternalName>>,
+    ),
 }
 
 impl std::fmt::Display for ValidSlotId {
@@ -338,6 +355,7 @@ impl std::fmt::Display for ValidSlotId {
         let s = match self {
             ValidSlotId::Principal => "principal",
             ValidSlotId::Resource => "resource",
+            ValidSlotId::GeneralizedSlot(n, _, _) => &n.to_smolstr(),
         };
         write!(f, "?{s}")
     }

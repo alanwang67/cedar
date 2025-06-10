@@ -293,8 +293,8 @@ impl Template {
             Ok(())
         } else {
             Err(LinkingError::from_unbound_and_extras(
-                unbound.into_iter().map(|slot| slot.id),
-                extra.into_iter().copied(),
+                unbound.into_iter().map(|slot| slot.id.clone()),
+                extra.into_iter().cloned(), // chore: look into cloned vs copied
             ))
         }
     }
@@ -2057,7 +2057,7 @@ mod test {
             let t = Arc::new(template);
             let env = t
                 .slots()
-                .map(|slot| (slot.id, EntityUID::with_eid("eid")))
+                .map(|slot| (slot.id.clone(), EntityUID::with_eid("eid")))
                 .collect();
             let _ = Template::link(t, PolicyID::from_string("id"), env).expect("Linking failed");
         }
