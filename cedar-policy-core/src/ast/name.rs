@@ -316,6 +316,18 @@ impl SlotId {
     pub fn is_resource(&self) -> bool {
         matches!(self, Self(ValidSlotId::Resource))
     }
+
+    /// Check if a slot is a generalized slot
+    pub fn is_generalized_slot(&self) -> bool {
+        matches!(
+            self,
+            Self(ValidSlotId::GeneralizedSlot {
+                name: _,
+                in_scope: _,
+                t: _
+            })
+        )
+    }
 }
 
 impl From<PrincipalOrResource> for SlotId {
@@ -333,7 +345,7 @@ impl std::fmt::Display for SlotId {
     }
 }
 
-/// Two possible variants for Slots
+/// Three possible variants for Slots
 #[derive(Debug, Clone, Educe, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 #[educe(Hash)]
 pub(crate) enum ValidSlotId {
@@ -341,13 +353,14 @@ pub(crate) enum ValidSlotId {
     Principal,
     #[serde(rename = "?resource")]
     Resource,
-    GeneralizedSlot(
-        Id,
-        bool,
+    // invariant: in_scope == false means t must be Some
+    GeneralizedSlot {
+        name: Id,
+        in_scope: bool,
         #[serde(skip)]
         #[educe(Hash(ignore))]
-        Option<Type<InternalName>>,
-    ),
+        t: Option<Type<InternalName>>,
+    },
 }
 
 impl std::fmt::Display for ValidSlotId {
@@ -355,7 +368,7 @@ impl std::fmt::Display for ValidSlotId {
         let s = match self {
             ValidSlotId::Principal => "principal",
             ValidSlotId::Resource => "resource",
-            ValidSlotId::GeneralizedSlot(n, _, _) => &n.to_smolstr(),
+            ValidSlotId::GeneralizedSlot { name, .. } => &name.to_smolstr(),
         };
         write!(f, "?{s}")
     }
