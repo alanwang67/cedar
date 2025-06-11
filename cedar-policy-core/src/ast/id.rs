@@ -17,7 +17,11 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use smol_str::SmolStr;
 
-use crate::{parser::err::ParseErrors, FromNormalizedStr};
+use crate::{
+    parser::cst,
+    parser::err::{ParseErrors, ToASTError, ToASTErrorKind},
+    FromNormalizedStr,
+};
 
 use super::{InternalName, ReservedNameError};
 
@@ -99,6 +103,38 @@ pub struct UnreservedId(#[cfg_attr(feature = "wasm", tsify(type = "string"))] pu
 impl From<UnreservedId> for Id {
     fn from(value: UnreservedId) -> Self {
         value.0
+    }
+}
+
+impl TryFrom<cst::Slot> for Id {
+    type Error = ParseErrors;
+    fn try_from(slot: cst::Slot) -> Result<Self, Self::Error> {
+        match slot {
+            cst::Slot::Other(s) => {
+                let invalid_idents = vec!["action", "context"];
+                let mut id = s.chars();
+                match id.next() {
+                    Some(c)
+                        if c == '?'
+                            && id.as_str().len() >= 1
+                            && !invalid_idents.contains(&id.as_str()) =>
+                    {
+                        id.as_str().parse()
+                    }
+                    _ => Err(ToASTError::new(
+                        ToASTErrorKind::InvalidIdentifier(s.to_string()),
+                        None,
+                    )
+                    .into()),
+                }
+            }
+            _ => {
+                let s = slot.to_string();
+                let mut iter = s.chars();
+                iter.next();
+                iter.as_str().parse()
+            }
+        }
     }
 }
 

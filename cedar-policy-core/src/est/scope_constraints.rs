@@ -655,7 +655,7 @@ impl From<ast::PrincipalOrResourceConstraint> for PrincipalConstraint {
                     entity: EntityUidJson::ImplicitEntityEscape((&*e).into()),
                 })
             }
-            ast::PrincipalOrResourceConstraint::Eq(ast::EntityReference::Slot(_)) => {
+            ast::PrincipalOrResourceConstraint::Eq(ast::EntityReference::Slot(_, _)) => {
                 PrincipalConstraint::Eq(EqConstraint::Slot {
                     slot: ast::SlotId::principal(),
                 })
@@ -665,7 +665,7 @@ impl From<ast::PrincipalOrResourceConstraint> for PrincipalConstraint {
                     entity: EntityUidJson::ImplicitEntityEscape((&*e).into()),
                 })
             }
-            ast::PrincipalOrResourceConstraint::In(ast::EntityReference::Slot(_)) => {
+            ast::PrincipalOrResourceConstraint::In(ast::EntityReference::Slot(_, _)) => {
                 PrincipalConstraint::In(PrincipalOrResourceInConstraint::Slot {
                     slot: ast::SlotId::principal(),
                 })
@@ -677,7 +677,7 @@ impl From<ast::PrincipalOrResourceConstraint> for PrincipalConstraint {
                         ast::EntityReference::EUID(e) => PrincipalOrResourceInConstraint::Entity {
                             entity: EntityUidJson::ImplicitEntityEscape((&*e).into()),
                         },
-                        ast::EntityReference::Slot(_) => PrincipalOrResourceInConstraint::Slot {
+                        ast::EntityReference::Slot(_, _) => PrincipalOrResourceInConstraint::Slot {
                             slot: ast::SlotId::principal(),
                         },
                     }),
@@ -702,7 +702,7 @@ impl From<ast::PrincipalOrResourceConstraint> for ResourceConstraint {
                     entity: EntityUidJson::ImplicitEntityEscape((&*e).into()),
                 })
             }
-            ast::PrincipalOrResourceConstraint::Eq(ast::EntityReference::Slot(_)) => {
+            ast::PrincipalOrResourceConstraint::Eq(ast::EntityReference::Slot(_, _)) => {
                 ResourceConstraint::Eq(EqConstraint::Slot {
                     slot: ast::SlotId::resource(),
                 })
@@ -712,7 +712,7 @@ impl From<ast::PrincipalOrResourceConstraint> for ResourceConstraint {
                     entity: EntityUidJson::ImplicitEntityEscape((&*e).into()),
                 })
             }
-            ast::PrincipalOrResourceConstraint::In(ast::EntityReference::Slot(_)) => {
+            ast::PrincipalOrResourceConstraint::In(ast::EntityReference::Slot(_, _)) => {
                 ResourceConstraint::In(PrincipalOrResourceInConstraint::Slot {
                     slot: ast::SlotId::resource(),
                 })
@@ -724,7 +724,7 @@ impl From<ast::PrincipalOrResourceConstraint> for ResourceConstraint {
                         ast::EntityReference::EUID(e) => PrincipalOrResourceInConstraint::Entity {
                             entity: EntityUidJson::ImplicitEntityEscape((&*e).into()),
                         },
-                        ast::EntityReference::Slot(_) => PrincipalOrResourceInConstraint::Slot {
+                        ast::EntityReference::Slot(_, _) => PrincipalOrResourceInConstraint::Slot {
                             slot: ast::SlotId::resource(),
                         },
                     }),
@@ -755,7 +755,7 @@ impl TryFrom<PrincipalConstraint> for ast::PrincipalOrResourceConstraint {
             PrincipalConstraint::Eq(EqConstraint::Slot { slot }) => {
                 if slot == ast::SlotId::principal() {
                     Ok(ast::PrincipalOrResourceConstraint::Eq(
-                        ast::EntityReference::Slot(None),
+                        ast::EntityReference::Slot(None, None),
                     ))
                 } else {
                     Err(Self::Error::InvalidSlotName)
@@ -769,7 +769,7 @@ impl TryFrom<PrincipalConstraint> for ast::PrincipalOrResourceConstraint {
             PrincipalConstraint::In(PrincipalOrResourceInConstraint::Slot { slot }) => {
                 if slot == ast::SlotId::principal() {
                     Ok(ast::PrincipalOrResourceConstraint::In(
-                        ast::EntityReference::Slot(None),
+                        ast::EntityReference::Slot(None, None),
                     ))
                 } else {
                     Err(Self::Error::InvalidSlotName)
@@ -820,7 +820,7 @@ impl TryFrom<ResourceConstraint> for ast::PrincipalOrResourceConstraint {
             ResourceConstraint::Eq(EqConstraint::Slot { slot }) => {
                 if slot == ast::SlotId::resource() {
                     Ok(ast::PrincipalOrResourceConstraint::Eq(
-                        ast::EntityReference::Slot(None),
+                        ast::EntityReference::Slot(None, None),
                     ))
                 } else {
                     Err(Self::Error::InvalidSlotName)
@@ -834,7 +834,7 @@ impl TryFrom<ResourceConstraint> for ast::PrincipalOrResourceConstraint {
             ResourceConstraint::In(PrincipalOrResourceInConstraint::Slot { slot }) => {
                 if slot == ast::SlotId::resource() {
                     Ok(ast::PrincipalOrResourceConstraint::In(
-                        ast::EntityReference::Slot(None),
+                        ast::EntityReference::Slot(None, None),
                     ))
                 } else {
                     Err(Self::Error::InvalidSlotName)

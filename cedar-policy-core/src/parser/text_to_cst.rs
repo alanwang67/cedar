@@ -1147,7 +1147,10 @@ mod tests {
             src,
             &errs,
             &ExpectedErrorMessageBuilder::error("unexpected token `-`")
-                .exactly_one_underline_with_label("-", "expected `(`, `@`, `template`, or identifier")
+                .exactly_one_underline_with_label(
+                    "-",
+                    "expected `(`, `@`, `template`, or identifier",
+                )
                 .build(),
         );
 
@@ -1176,7 +1179,10 @@ mod tests {
             src,
             &errs,
             &ExpectedErrorMessageBuilder::error("unexpected token `+`")
-                .exactly_one_underline_with_label("+", "expected `(`, `@`, `template`, or identifier")
+                .exactly_one_underline_with_label(
+                    "+",
+                    "expected `(`, `@`, `template`, or identifier",
+                )
                 .build(),
         );
     }

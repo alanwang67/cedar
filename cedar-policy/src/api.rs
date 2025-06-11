@@ -3110,13 +3110,13 @@ impl Template {
             ast::PrincipalOrResourceConstraint::In(eref) => {
                 TemplatePrincipalConstraint::In(match eref {
                     ast::EntityReference::EUID(e) => Some(e.as_ref().clone().into()),
-                    ast::EntityReference::Slot(_) => None,
+                    ast::EntityReference::Slot(_, _) => None,
                 })
             }
             ast::PrincipalOrResourceConstraint::Eq(eref) => {
                 TemplatePrincipalConstraint::Eq(match eref {
                     ast::EntityReference::EUID(e) => Some(e.as_ref().clone().into()),
-                    ast::EntityReference::Slot(_) => None,
+                    ast::EntityReference::Slot(_, _) => None,
                 })
             }
             ast::PrincipalOrResourceConstraint::Is(entity_type) => {
@@ -3127,7 +3127,7 @@ impl Template {
                     entity_type.as_ref().clone().into(),
                     match eref {
                         ast::EntityReference::EUID(e) => Some(e.as_ref().clone().into()),
-                        ast::EntityReference::Slot(_) => None,
+                        ast::EntityReference::Slot(_, _) => None,
                     },
                 )
             }
@@ -3161,13 +3161,13 @@ impl Template {
             ast::PrincipalOrResourceConstraint::In(eref) => {
                 TemplateResourceConstraint::In(match eref {
                     ast::EntityReference::EUID(e) => Some(e.as_ref().clone().into()),
-                    ast::EntityReference::Slot(_) => None,
+                    ast::EntityReference::Slot(_, _) => None,
                 })
             }
             ast::PrincipalOrResourceConstraint::Eq(eref) => {
                 TemplateResourceConstraint::Eq(match eref {
                     ast::EntityReference::EUID(e) => Some(e.as_ref().clone().into()),
-                    ast::EntityReference::Slot(_) => None,
+                    ast::EntityReference::Slot(_, _) => None,
                 })
             }
             ast::PrincipalOrResourceConstraint::Is(entity_type) => {
@@ -3178,7 +3178,7 @@ impl Template {
                     entity_type.as_ref().clone().into(),
                     match eref {
                         ast::EntityReference::EUID(e) => Some(e.as_ref().clone().into()),
-                        ast::EntityReference::Slot(_) => None,
+                        ast::EntityReference::Slot(_, _) => None,
                     },
                 )
             }
@@ -3543,7 +3543,7 @@ impl Policy {
             ast::EntityReference::EUID(euid) => EntityUid::ref_cast(euid),
             // PANIC SAFETY: This `unwrap` here is safe due the invariant (values total map) on policies.
             #[allow(clippy::unwrap_used)]
-            ast::EntityReference::Slot(_) => {
+            ast::EntityReference::Slot(_, _) => {
                 EntityUid::ref_cast(self.ast.env().get(&slot).unwrap())
             }
         }

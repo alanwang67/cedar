@@ -4812,14 +4812,14 @@ mod tests {
                 r#"permit(principal in ?resource, action, resource);"#,
                 ExpectedErrorMessageBuilder::error("expected an entity uid or matching template slot, found ?resource instead of ?principal").exactly_one_underline("?resource").build(),
             ),
-            (
-                r#"permit(principal == ?foo, action, resource);"#,
-                ExpectedErrorMessageBuilder::error("expected an entity uid or matching template slot, found ?foo instead of ?principal").exactly_one_underline("?foo").build(),
-            ),
-            (
-                r#"permit(principal in ?foo, action, resource);"#,
-                ExpectedErrorMessageBuilder::error("expected an entity uid or matching template slot, found ?foo instead of ?principal").exactly_one_underline("?foo").build(),
-            ),
+            // (
+            //     r#"permit(principal == ?foo, action, resource);"#,
+            //     ExpectedErrorMessageBuilder::error("expected an entity uid or matching template slot, found ?foo instead of ?principal").exactly_one_underline("?foo").build(),
+            // ),
+            // (
+            //     r#"permit(principal in ?foo, action, resource);"#,
+            //     ExpectedErrorMessageBuilder::error("expected an entity uid or matching template slot, found ?foo instead of ?principal").exactly_one_underline("?foo").build(),
+            // ),
 
             (
                 r#"permit(principal, action, resource == ?principal);"#,
@@ -4829,14 +4829,14 @@ mod tests {
                 r#"permit(principal, action, resource in ?principal);"#,
                 ExpectedErrorMessageBuilder::error("expected an entity uid or matching template slot, found ?principal instead of ?resource").exactly_one_underline("?principal").build(),
             ),
-            (
-                r#"permit(principal, action, resource == ?baz);"#,
-                ExpectedErrorMessageBuilder::error("expected an entity uid or matching template slot, found ?baz instead of ?resource").exactly_one_underline("?baz").build(),
-            ),
-            (
-                r#"permit(principal, action, resource in ?baz);"#,
-                ExpectedErrorMessageBuilder::error("expected an entity uid or matching template slot, found ?baz instead of ?resource").exactly_one_underline("?baz").build(),
-            ),
+            // (
+            //     r#"permit(principal, action, resource == ?baz);"#,
+            //     ExpectedErrorMessageBuilder::error("expected an entity uid or matching template slot, found ?baz instead of ?resource").exactly_one_underline("?baz").build(),
+            // ),
+            // (
+            //     r#"permit(principal, action, resource in ?baz);"#,
+            //     ExpectedErrorMessageBuilder::error("expected an entity uid or matching template slot, found ?baz instead of ?resource").exactly_one_underline("?baz").build(),
+            // ),
             (
                 r#"permit(principal, action, resource) when { principal == ?foo};"#,
                 ExpectedErrorMessageBuilder::error(
