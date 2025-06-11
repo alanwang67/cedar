@@ -41,11 +41,16 @@ use super::{cst, AsLocRef, IntoMaybeLoc, Loc, MaybeLoc};
 #[cfg(feature = "tolerant-ast")]
 use crate::ast::expr_allows_errors::ExprWithErrsBuilder;
 use crate::ast::{
-    self, ActionConstraint, CallStyle, Integer, PatternElem, PolicySetError, PrincipalConstraint,
-    PrincipalOrResourceConstraint, ResourceConstraint, UnreservedId,
+    self, ActionConstraint, CallStyle, Integer, InternalName, PatternElem, PolicySetError,
+    PrincipalConstraint, PrincipalOrResourceConstraint, ResourceConstraint, UnreservedId,
 };
 use crate::expr_builder::ExprBuilder;
 use crate::fuzzy_match::fuzzy_search_limited;
+use crate::parser::cst::Slot;
+use crate::validator::{
+    cedar_schema::to_json_schema::cedar_type_to_json_type, json_schema::Type, AllDefs,
+    ConditionalName, ValidatorSchemaFragment,
+};
 use itertools::{Either, Itertools};
 use nonempty::nonempty;
 use nonempty::NonEmpty;
@@ -315,6 +320,18 @@ impl Node<Option<cst::Policy>> {
         let maybe_annotations = policy.get_ast_annotations(|value, loc| {
             ast::Annotation::with_optional_value(value, loc.into_maybe_loc())
         });
+
+        // convert template annotations
+        let maybe_template_type_annotations = policy.get_template_type_annotations(|s| s);
+
+        // Error Handling: Check each condition
+        // 1. Every slot in the condition of the template must have a type annotation
+        // 2. ?action and ?context are reserved names
+        // 3. Slots that appear in the scope can only be of Entity type
+        // 4. ?principal and ?resource can only be used as how they are currently
+        // 5. All slot names must begin with ?
+        // 6. All slots within the template annotation (template()) must be used in the template
+        // 7. ?principal and ?resource slots must appear in the scope
 
         // convert scope
         let maybe_scope = policy.extract_scope();
@@ -670,6 +687,51 @@ impl cst::PolicyImpl {
             Some(errs) => Err(errs),
             None => Ok(annotations),
         }
+    }
+
+    /// Get template type annotations from `cst::Policy`
+    pub fn get_template_type_annotations<T: Ord>(
+        &self,
+        slot_constructor: impl Fn(Slot) -> T,
+    ) -> Result<BTreeMap<T, Type<InternalName>>> {
+        let mut map = BTreeMap::new();
+        let mut all_errs: Vec<ParseErrors> = vec![];
+        let template_type_annotation = match &self.template_type_annotation {
+            Some(n) => n.try_as_inner()?.values.clone(),
+            None => vec![],
+        };
+        for s in template_type_annotation {
+            let slot_type_pair = s.try_into_inner()?;
+            let slot = slot_type_pair.slot.try_into_inner()?;
+            use std::collections::btree_map::Entry;
+
+            match map.entry(slot_constructor(slot)) {
+                Entry::Occupied(_oentry) => {
+                    panic!("slot type annotations are required to be unique"); // Chore: Add an error over here
+                }
+
+                Entry::Vacant(ventry) => {
+                    let t = slot_type_pair
+                        .t
+                        .into_apply(|t, l| Some(Node { node: t, loc: l }))
+                        .unwrap(); // Chore: replace unwrap
+
+                    // convert AST type into json_schema Type<InternalName>
+                    let all_defs = AllDefs::new(|| {
+                        std::iter::empty::<&ValidatorSchemaFragment<ConditionalName, ConditionalName>>(
+                        )
+                    });
+
+                    let t = cedar_type_to_json_type(t)
+                        .conditionally_qualify_type_references(None)
+                        .fully_qualify_type_references(&all_defs)
+                        .unwrap();
+
+                    ventry.insert(t);
+                }
+            }
+        }
+        Ok(map)
     }
 }
 

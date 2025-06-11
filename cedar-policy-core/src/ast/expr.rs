@@ -292,10 +292,12 @@ impl<T> Expr<T> {
     pub fn slots(&self) -> impl Iterator<Item = Slot> + '_ {
         self.subexpressions()
             .filter_map(|exp| match &exp.expr_kind {
-                ExprKind::Slot(slotid) => Some(Slot {
-                    id: slotid.clone(),
-                    loc: exp.source_loc().into_maybe_loc(),
-                }),
+                ExprKind::Slot(slotid) if slotid.is_principal() || slotid.is_resource() => {
+                    Some(Slot {
+                        id: slotid.clone(),
+                        loc: exp.source_loc().into_maybe_loc(),
+                    })
+                }
                 _ => None,
             })
     }

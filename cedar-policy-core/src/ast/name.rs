@@ -307,6 +307,8 @@ impl SlotId {
         Self(ValidSlotId::Resource)
     }
 
+    /// Chore: Potentially create a new constructor to generate a generalized slot w. error checking
+
     /// Check if a slot represents a principal
     pub fn is_principal(&self) -> bool {
         matches!(self, Self(ValidSlotId::Principal))
