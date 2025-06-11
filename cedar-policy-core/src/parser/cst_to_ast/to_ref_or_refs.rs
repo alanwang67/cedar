@@ -243,14 +243,14 @@ impl Node<Option<cst::Primary>> {
                 // support slots.
                 T::create_slot(None, self.loc.as_loc_ref())?;
 
-                let id = s.try_as_inner()?;
-                let str_id = id.clone().try_into()?;
-                let slot_ref = T::create_slot(Some(&str_id), self.loc.as_loc_ref())?;
                 let special_idents = vec!["principal", "resource"];
+
+                let id = s.try_as_inner()?;
+                let str_id: Id = id.clone().try_into()?;
                 if special_idents.contains(&str_id.to_string().as_ref()) {
                     let slot = s.try_as_inner()?;
                     if slot.matches(var) {
-                        Ok(slot_ref)
+                        Ok(T::create_slot(None, self.loc.as_loc_ref())?)
                     } else {
                         Err(self
                             .to_ast_err(ToASTErrorKind::wrong_node(
@@ -261,6 +261,7 @@ impl Node<Option<cst::Primary>> {
                             .into())
                     }
                 } else {
+                    let slot_ref = T::create_slot(Some(&str_id), self.loc.as_loc_ref())?;
                     Ok(slot_ref)
                 }
             }

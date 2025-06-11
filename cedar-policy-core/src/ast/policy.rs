@@ -1514,7 +1514,7 @@ pub enum EntityReference {
         #[educe(PartialEq(ignore))]
         #[educe(PartialOrd(ignore))]
         #[educe(Hash(ignore))]
-        Option<Id>,
+        Option<Id>, // Invariant: If the slot is a generalized slot then id will always be Some, otherwise it will be None
         #[educe(PartialEq(ignore))]
         #[educe(PartialOrd(ignore))]
         #[educe(Hash(ignore))]
@@ -1533,10 +1533,19 @@ impl EntityReference {
     /// `slot` indicates what `SlotId` would be implied by
     /// `EntityReference::Slot`, which is always clear from the caller's
     /// context.
-    pub fn into_expr(&self, slot: SlotId) -> Expr {
+    pub fn into_expr(&self, pos: name::ScopePosition) -> Expr {
         match self {
             EntityReference::EUID(euid) => Expr::val(euid.clone()),
-            EntityReference::Slot(_, loc) => Expr::slot(slot).with_maybe_source_loc(loc.clone()),
+            EntityReference::Slot(id, loc) => {
+                let slot = match id {
+                    Some(id) => SlotId::generalized_slot(id.clone(), Some(pos), None),
+                    None => match pos {
+                        name::ScopePosition::Principal => SlotId::principal(),
+                        name::ScopePosition::Resource => SlotId::resource(),
+                    },
+                };
+                Expr::slot(slot).with_maybe_source_loc(loc.clone())
+            }
         }
     }
 }
@@ -2324,12 +2333,12 @@ mod test {
     fn euid_into_expr() {
         let e = EntityReference::Slot(None, None);
         assert_eq!(
-            e.into_expr(SlotId::principal()),
+            e.into_expr(name::ScopePosition::Principal),
             Expr::slot(SlotId::principal())
         );
         let e = EntityReference::euid(Arc::new(EntityUID::with_eid("eid")));
         assert_eq!(
-            e.into_expr(SlotId::principal()),
+            e.into_expr(name::ScopePosition::Principal),
             Expr::val(EntityUID::with_eid("eid"))
         );
     }

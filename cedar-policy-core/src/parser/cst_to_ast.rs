@@ -341,8 +341,8 @@ impl Node<Option<cst::Policy>> {
         // Current impl -> change entity reference such that it also keeps track of the name of the slot, and then traverse principal constraint and resource
         // constraint to get the slot
 
-        // let maybe_slot_in_principal =
-        // let maybe_slot_in_resource =
+        let (maybe_slot_in_principal, maybe_slot_in_resource) =
+            policy.get_principal_resource_slot_in_scope();
 
         // convert scope
         let maybe_scope = policy.extract_scope();
@@ -480,6 +480,36 @@ impl Node<Option<cst::Policy>> {
 }
 
 impl cst::PolicyImpl {
+    /// Get the slot that appears in the principal position of the scope in `cst::Policy`
+    pub fn get_principal_resource_slot_in_scope(
+        &self,
+    ) -> (Option<crate::ast::Slot>, Option<crate::ast::Slot>) {
+        match self.extract_scope() {
+            Ok((p, _, r)) => {
+                let principal_slots = p
+                    .constraint
+                    .as_expr(ast::PrincipalOrResource::Principal)
+                    .subexpressions()
+                    .flat_map(|subexp| subexp.generalized_slots())
+                    .collect::<Vec<crate::ast::Slot>>();
+
+                let resource_slots = r
+                    .constraint
+                    .as_expr(ast::PrincipalOrResource::Principal)
+                    .subexpressions()
+                    .flat_map(|subexp| subexp.generalized_slots())
+                    .collect::<Vec<crate::ast::Slot>>();
+
+                // Chore: Subexpression returns every nested structure, there must be a better way to do this
+                (
+                    principal_slots.get(0).cloned(),
+                    resource_slots.get(0).cloned(),
+                )
+            }
+            Err(_) => (None, None),
+        }
+    }
+
     /// Get the scope constraints from the `cst::Policy`
     pub fn extract_scope(
         &self,
@@ -2201,8 +2231,8 @@ impl From<ast::SlotId> for cst::Slot {
         match slot {
             ast::SlotId(ast::ValidSlotId::Principal) => cst::Slot::Principal,
             ast::SlotId(ast::ValidSlotId::Resource) => cst::Slot::Resource,
-            ast::SlotId(ast::ValidSlotId::GeneralizedSlot { name, .. }) => {
-                cst::Slot::Other(name.to_smolstr())
+            ast::SlotId(ast::ValidSlotId::GeneralizedSlot { id, .. }) => {
+                cst::Slot::Other(id.to_smolstr())
             }
         }
     }

@@ -307,7 +307,18 @@ impl SlotId {
         Self(ValidSlotId::Resource)
     }
 
-    /// Chore: Potentially create a new constructor to generate a generalized slot w. error checking
+    /// Create a``` generalized slot```
+    pub fn generalized_slot(
+        id: Id,
+        scope_position: Option<ScopePosition>,
+        t: Option<Type<InternalName>>,
+    ) -> Self {
+        Self(ValidSlotId::GeneralizedSlot {
+            id,
+            scope_position,
+            t,
+        })
+    }
 
     /// Check if a slot represents a principal
     pub fn is_principal(&self) -> bool {
@@ -324,7 +335,7 @@ impl SlotId {
         matches!(
             self,
             Self(ValidSlotId::GeneralizedSlot {
-                name: _,
+                id: _,
                 scope_position: _,
                 t: _
             })
@@ -363,11 +374,22 @@ impl std::fmt::Display for SlotId {
     }
 }
 
-/// Enum for scope position of user defined slots
+/// Enum for scope position of generalized slots
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
-pub(crate) enum ScopePosition {
+pub enum ScopePosition {
+    /// Principal position in scope
     Principal,
+    /// Resource position in scope
     Resource,
+}
+
+impl From<PrincipalOrResource> for ScopePosition {
+    fn from(v: PrincipalOrResource) -> Self {
+        match v {
+            PrincipalOrResource::Principal => ScopePosition::Principal,
+            PrincipalOrResource::Resource => ScopePosition::Resource,
+        }
+    }
 }
 
 /// Three possible variants for Slots
@@ -380,7 +402,7 @@ pub(crate) enum ValidSlotId {
     Resource,
     // invariant: scope_position == None means t must be Some
     GeneralizedSlot {
-        name: Id,
+        id: Id,
         scope_position: Option<ScopePosition>,
         #[serde(skip)]
         #[educe(Hash(ignore))]
@@ -393,7 +415,7 @@ impl std::fmt::Display for ValidSlotId {
         let s = match self {
             ValidSlotId::Principal => "principal",
             ValidSlotId::Resource => "resource",
-            ValidSlotId::GeneralizedSlot { name, .. } => &name.to_smolstr(),
+            ValidSlotId::GeneralizedSlot { id, .. } => &id.to_smolstr(),
         };
         write!(f, "?{s}")
     }
