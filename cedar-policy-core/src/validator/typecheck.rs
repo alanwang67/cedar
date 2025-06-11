@@ -410,6 +410,11 @@ impl<'a> SingleEnvTypechecker<'a> {
                                 None,
                             )
                             .unwrap();
+
+                            // Chore: In order to handle primitive types & common types we need to handle this here
+                            // Pros of handling it while type checking: don't need to pass around another variable we just
+                            // need to convert it here by using the slot type
+
                             let validator_type = unresolved
                                 .resolve_common_type_refs(&HashMap::new())
                                 .unwrap();
@@ -430,7 +435,7 @@ impl<'a> SingleEnvTypechecker<'a> {
                                     .map(Type::named_entity_reference)
                                     .unwrap_or_else(Type::any_entity_reference),
                             },
-                            None => Type::any_entity_reference(), // Chore: potentially just throw an error, this is an invariant violation (every slot in condition must have a type)
+                            None => Type::any_entity_reference(), // Chore: potentially just throw an error, this is an invariant violation (every slot in condition must have a type
                         },
                     }
                 } else {

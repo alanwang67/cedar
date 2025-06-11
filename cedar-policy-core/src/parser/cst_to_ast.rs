@@ -333,6 +333,17 @@ impl Node<Option<cst::Policy>> {
         // 6. All slots within the template annotation (template()) must be used in the template
         // 7. ?principal and ?resource slots must appear in the scope
 
+        // Some where over here we need to determine which slot is binded to the principal position &
+        // which slot is binded to the resource position
+        // they should also be unique
+        // a naive implementation can possibly just traverse the principal constraint and resource constraint: NO PRINCIPAL CONSTRAINT DOES NOT HAVE ENOUGH INFO
+
+        // Current impl -> change entity reference such that it also keeps track of the name of the slot, and then traverse principal constraint and resource
+        // constraint to get the slot
+
+        // let maybe_slot_in_principal =
+        // let maybe_slot_in_resource =
+
         // convert scope
         let maybe_scope = policy.extract_scope();
 
