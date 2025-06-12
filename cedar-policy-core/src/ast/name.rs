@@ -331,7 +331,7 @@ pub(crate) enum ValidSlotId {
     Principal,
     #[serde(rename = "?resource")]
     Resource,
-    Other(Id), 
+    Other(Id),
 }
 
 impl std::fmt::Display for ValidSlotId {

@@ -16,26 +16,56 @@
 
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
-use crate::validator::{json_schema::Type, RawName}; 
 use crate::ast::Slot;
+use crate::validator::{json_schema::Type, RawName};
+use serde::{Deserialize, Serialize};
 
 /// Struct which holds the data for a generalized slot
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug)]
-pub struct SlotsTypePosition(BTreeMap<Slot, SlotTypePosition>); 
+pub struct SlotTypePositionAnnotations(BTreeMap<Slot, SlotTypePosition>);
 
-impl SlotsTypePosition {
-    /// Create a new empty `SlotsTypePosition` (with no slots)
+impl SlotTypePositionAnnotations {
+    /// Create a new empty `SlotTypePositionAnnotations` (with no slots)
     pub fn new() -> Self {
         Self(BTreeMap::new())
     }
+
+    /// Get an SlotTypePositionAnnotations by key
+    pub fn get(&self, key: &Slot) -> Option<&SlotTypePosition> {
+        self.0.get(key)
+    }
+
+    /// Iterate over all SlotTypePositionAnnotations
+    pub fn iter(&self) -> impl Iterator<Item = (&Slot, &SlotTypePosition)> {
+        self.0.iter()
+    }
+
+    /// Tell if it's empty
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
-impl Default for SlotsTypePosition {
+impl Default for SlotTypePositionAnnotations {
     fn default() -> Self {
         Self::new()
     }
 }
+
+impl FromIterator<(Slot, SlotTypePosition)> for SlotTypePositionAnnotations {
+    fn from_iter<T: IntoIterator<Item = (Slot, SlotTypePosition)>>(iter: T) -> Self {
+        Self(BTreeMap::from_iter(iter))
+    }
+}
+
+impl From<BTreeMap<Slot, SlotTypePosition>> for SlotTypePositionAnnotations {
+    fn from(value: BTreeMap<Slot, SlotTypePosition>) -> Self {
+        Self(value)
+    }
+}
+
+// We need to include the position of the slot so when we are typechecking we can use the type that is stored
+// with that position since otherwise we would not know which type to use
 
 /// Enum for scope position of generalized slots
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -51,5 +81,5 @@ pub enum ScopePosition {
 /// Stores the position and type for generalized slots
 pub struct SlotTypePosition {
     position: Option<ScopePosition>,
-    t: Option<Type<RawName>>, 
+    t: Option<Type<RawName>>,
 }

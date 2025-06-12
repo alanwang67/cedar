@@ -492,6 +492,7 @@ fn construct_policy((effect, id, expr, annotations): PolicyComponents<'_>) -> Po
         id.clone(),
         expr.source_loc().into_maybe_loc(),
         (*annotations).clone(),
+        Arc::default(), // Chore: Figure out what to do over here
     )
 }
 
@@ -648,6 +649,7 @@ mod test {
             PolicyID::from_string("d"),
             None,
             Arc::default(),
+            Arc::default(), // Chore: Figure out what to do over here
         );
         let e = Policy::from_when_clause(
             Effect::Forbid,
@@ -673,6 +675,7 @@ mod test {
             PolicyID::from_string("h"),
             None,
             Arc::default(),
+            Arc::default(), // Figure out what to do over here
         );
 
         assert_eq!(

@@ -22,6 +22,7 @@ use itertools::Itertools;
 use miette::Diagnostic;
 use nonempty::{nonempty, NonEmpty};
 use serde::{Deserialize, Serialize};
+use slot::SlotTypePositionAnnotations;
 use smol_str::SmolStr;
 use std::{
     collections::{HashMap, HashSet},
@@ -120,6 +121,7 @@ impl Template {
         id: PolicyID,
         loc: MaybeLoc,
         annotations: Annotations,
+        slot_type_position_annotations: SlotTypePositionAnnotations,
         effect: Effect,
         principal_constraint: PrincipalConstraint,
         action_constraint: ActionConstraint,
@@ -130,6 +132,7 @@ impl Template {
             id,
             loc,
             annotations,
+            slot_type_position_annotations,
             effect,
             principal_constraint,
             action_constraint,
@@ -154,6 +157,7 @@ impl Template {
         id: PolicyID,
         loc: MaybeLoc,
         annotations: Arc<Annotations>,
+        slot_type_position_annotations: Arc<SlotTypePositionAnnotations>,
         effect: Effect,
         principal_constraint: PrincipalConstraint,
         action_constraint: ActionConstraint,
@@ -164,6 +168,7 @@ impl Template {
             id,
             loc,
             annotations,
+            slot_type_position_annotations,
             effect,
             principal_constraint,
             action_constraint,
@@ -449,6 +454,7 @@ impl Policy {
             id,
             loc,
             Arc::new(Annotations::default()),
+            Arc::new(SlotTypePositionAnnotations::default()),
         )
     }
 
@@ -459,11 +465,13 @@ impl Policy {
         id: PolicyID,
         loc: MaybeLoc,
         annotations: Arc<Annotations>,
+        slot_type_position_annotations: Arc<SlotTypePositionAnnotations>,
     ) -> Self {
         let t = Template::new_shared(
             id,
             loc,
             annotations,
+            slot_type_position_annotations,
             effect,
             PrincipalConstraint::any(),
             ActionConstraint::any(),
@@ -845,6 +853,18 @@ impl StaticPolicy {
         self.0.annotations()
     }
 
+    /// Get data from an slot_type_position_annotations.
+    pub fn slot_type_position_annotation(&self, key: &Slot) -> Option<&SlotTypePosition> {
+        self.0.slot_type_position_annotation(key)
+    }
+
+    /// Get all slot_type_position_annotations data.
+    pub fn slot_type_position_annotations(
+        &self,
+    ) -> impl Iterator<Item = (&Slot, &SlotTypePosition)> {
+        self.0.slot_type_position_annotations()
+    }
+
     /// Get the `principal` scope constraint of this policy.
     pub fn principal_constraint(&self) -> &PrincipalConstraint {
         self.0.principal_constraint()
@@ -904,6 +924,7 @@ impl StaticPolicy {
         id: PolicyID,
         loc: MaybeLoc,
         annotations: Annotations,
+        slot_type_position_annotations: SlotTypePositionAnnotations,
         effect: Effect,
         principal_constraint: PrincipalConstraint,
         action_constraint: ActionConstraint,
@@ -914,6 +935,7 @@ impl StaticPolicy {
             id,
             loc,
             annotations,
+            slot_type_position_annotations,
             effect,
             principal_constraint,
             action_constraint,
@@ -971,6 +993,9 @@ pub struct TemplateBodyImpl {
     /// Note that the keys are `AnyId`, so Cedar reserved words like `if` and `has`
     /// are explicitly allowed as annotations.
     annotations: Arc<Annotations>,
+    #[educe(Hash(ignore))] // Chore: For now we ignore the Hash since the Type cannot derive it
+    /// Stores type and position information about the generalized slots
+    slot_type_position_annotations: Arc<SlotTypePositionAnnotations>,
     /// `Effect` of this policy
     effect: Effect,
     /// Scope constraint for principal. This will be a boolean-valued expression:
@@ -1076,6 +1101,44 @@ impl TemplateBody {
     pub fn annotations(&self) -> impl Iterator<Item = (&AnyId, &Annotation)> {
         match self {
             TemplateBody::TemplateBody(TemplateBodyImpl { annotations, .. }) => annotations.iter(),
+            #[cfg(feature = "tolerant-ast")]
+            TemplateBody::TemplateBodyError(_, _) => DEFAULT_ANNOTATIONS.iter(),
+        }
+    }
+
+    /// Get data from an SlotTypePositionAnnotations
+    pub fn slot_type_position_annotation(&self, key: &Slot) -> Option<&SlotTypePosition> {
+        match self {
+            TemplateBody::TemplateBody(TemplateBodyImpl {
+                slot_type_position_annotations,
+                ..
+            }) => slot_type_position_annotations.get(key),
+            #[cfg(feature = "tolerant-ast")]
+            TemplateBody::TemplateBodyError(_, _) => None,
+        }
+    }
+
+    /// Get shared ref to SlotTypePositionAnnotations
+    pub fn slot_type_position_annotations_arc(&self) -> &Arc<SlotTypePositionAnnotations> {
+        match self {
+            TemplateBody::TemplateBody(TemplateBodyImpl {
+                slot_type_position_annotations,
+                ..
+            }) => slot_type_position_annotations,
+            #[cfg(feature = "tolerant-ast")]
+            TemplateBody::TemplateBodyError(_, _) => &DEFAULT_ANNOTATIONS,
+        }
+    }
+
+    /// Get all SlotTypePositionAnnotations data.
+    pub fn slot_type_position_annotations(
+        &self,
+    ) -> impl Iterator<Item = (&Slot, &SlotTypePosition)> {
+        match self {
+            TemplateBody::TemplateBody(TemplateBodyImpl {
+                slot_type_position_annotations,
+                ..
+            }) => slot_type_position_annotations.iter(),
             #[cfg(feature = "tolerant-ast")]
             TemplateBody::TemplateBodyError(_, _) => DEFAULT_ANNOTATIONS.iter(),
         }
@@ -1217,6 +1280,7 @@ impl TemplateBody {
         id: PolicyID,
         loc: MaybeLoc,
         annotations: Arc<Annotations>,
+        slot_type_position_annotations: Arc<SlotTypePositionAnnotations>,
         effect: Effect,
         principal_constraint: PrincipalConstraint,
         action_constraint: ActionConstraint,
@@ -1227,6 +1291,7 @@ impl TemplateBody {
             id,
             loc,
             annotations,
+            slot_type_position_annotations,
             effect,
             principal_constraint,
             action_constraint,
@@ -1241,6 +1306,7 @@ impl TemplateBody {
         id: PolicyID,
         loc: MaybeLoc,
         annotations: Annotations,
+        slot_type_position_annotations: SlotTypePositionAnnotations,
         effect: Effect,
         principal_constraint: PrincipalConstraint,
         action_constraint: ActionConstraint,
@@ -1251,6 +1317,7 @@ impl TemplateBody {
             id,
             loc,
             annotations: Arc::new(annotations),
+            slot_type_position_annotations: Arc::new(slot_type_position_annotations),
             effect,
             principal_constraint,
             action_constraint,
@@ -2007,6 +2074,7 @@ pub(crate) mod test_generators {
                         permit.clone(),
                         None,
                         Annotations::new(),
+                        SlotTypePositionAnnotations::new(),
                         Effect::Permit,
                         principal.clone(),
                         action.clone(),
@@ -2017,6 +2085,7 @@ pub(crate) mod test_generators {
                         forbid.clone(),
                         None,
                         Annotations::new(),
+                        SlotTypePositionAnnotations::new(),
                         Effect::Forbid,
                         principal.clone(),
                         action.clone(),
@@ -2072,7 +2141,17 @@ mod test {
             let a = template.action_constraint().clone();
             let r = template.resource_constraint().clone();
             let non_scope = template.non_scope_constraints().clone();
-            let t2 = Template::new(id, None, Annotations::new(), effect, p, a, r, non_scope);
+            let t2 = Template::new(
+                id,
+                None,
+                Annotations::new(),
+                SlotTypePositionAnnotations::new(),
+                effect,
+                p,
+                a,
+                r,
+                non_scope,
+            );
             assert_eq!(template, t2);
         }
     }
@@ -2087,12 +2166,26 @@ mod test {
                     .annotations()
                     .map(|(k, v)| (k.clone(), v.clone()))
                     .collect();
+                let slot_type_position_anno = ip
+                    .slot_type_position_annotations()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
                 let p = ip.principal_constraint().clone();
                 let a = ip.action_constraint().clone();
                 let r = ip.resource_constraint().clone();
                 let non_scope = ip.non_scope_constraints().clone();
-                let ip2 = StaticPolicy::new(id, None, anno, e, p, a, r, non_scope)
-                    .expect("Policy Creation Failed");
+                let ip2 = StaticPolicy::new(
+                    id,
+                    None,
+                    anno,
+                    slot_type_position_anno,
+                    e,
+                    p,
+                    a,
+                    r,
+                    non_scope,
+                )
+                .expect("Policy Creation Failed");
                 assert_eq!(ip, ip2);
                 let (t2, inst) = Template::link_static_policy(ip2);
                 assert!(inst.is_static());
@@ -2109,6 +2202,7 @@ mod test {
             tid,
             None,
             Annotations::new(),
+            SlotTypePositionAnnotations::new(),
             Effect::Forbid,
             PrincipalConstraint::is_eq_slot(),
             ActionConstraint::Any,
@@ -2131,6 +2225,7 @@ mod test {
             tid,
             None,
             Annotations::new(),
+            SlotTypePositionAnnotations::new(),
             Effect::Forbid,
             PrincipalConstraint::is_eq_slot(),
             ActionConstraint::Any,
@@ -2157,6 +2252,7 @@ mod test {
             tid,
             None,
             Annotations::new(),
+            SlotTypePositionAnnotations::new(),
             Effect::Permit,
             PrincipalConstraint::is_in_slot(),
             ActionConstraint::any(),

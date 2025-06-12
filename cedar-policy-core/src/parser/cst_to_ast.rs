@@ -42,7 +42,7 @@ use super::{cst, AsLocRef, IntoMaybeLoc, Loc, MaybeLoc};
 use crate::ast::expr_allows_errors::ExprWithErrsBuilder;
 use crate::ast::{
     self, ActionConstraint, CallStyle, Integer, PatternElem, PolicySetError, PrincipalConstraint,
-    PrincipalOrResourceConstraint, ResourceConstraint, UnreservedId,
+    PrincipalOrResourceConstraint, ResourceConstraint, SlotTypePositionAnnotations, UnreservedId,
 };
 use crate::expr_builder::ExprBuilder;
 use crate::fuzzy_match::fuzzy_search_limited;
@@ -344,6 +344,7 @@ impl Node<Option<cst::Policy>> {
         Ok(construct_template_policy(
             id,
             annotations.into(),
+            SlotTypePositionAnnotations::default(), // Chore: Change this once we parse the template type annotations and convert it into this shape
             effect,
             principal,
             action,
@@ -2336,6 +2337,7 @@ impl Node<Option<cst::RecInit>> {
 fn construct_template_policy(
     id: ast::PolicyID,
     annotations: ast::Annotations,
+    slot_type_position_annotations: ast::SlotTypePositionAnnotations,
     effect: ast::Effect,
     principal: ast::PrincipalConstraint,
     action: ast::ActionConstraint,
@@ -2348,6 +2350,7 @@ fn construct_template_policy(
             id,
             loc.into_maybe_loc(),
             annotations,
+            slot_type_position_annotations,
             effect,
             principal,
             action,

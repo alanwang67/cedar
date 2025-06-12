@@ -302,6 +302,7 @@ impl Policy {
                     )
                 })
                 .collect(),
+            ast::SlotTypePositionAnnotations::new(), // Chore: Fix this, this is just to get it to compile
             self.effect,
             self.principal.try_into()?,
             self.action.try_into()?,
