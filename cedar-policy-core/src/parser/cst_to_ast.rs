@@ -41,15 +41,16 @@ use super::{cst, AsLocRef, IntoMaybeLoc, Loc, MaybeLoc};
 #[cfg(feature = "tolerant-ast")]
 use crate::ast::expr_allows_errors::ExprWithErrsBuilder;
 use crate::ast::{
-    self, ActionConstraint, CallStyle, Integer, InternalName, PatternElem, PolicySetError,
+    self, ActionConstraint, CallStyle, Integer, Name, PatternElem, PolicySetError,
     PrincipalConstraint, PrincipalOrResourceConstraint, ResourceConstraint, UnreservedId,
+    ValidSlotId,
 };
 use crate::expr_builder::ExprBuilder;
 use crate::fuzzy_match::fuzzy_search_limited;
 use crate::parser::cst::Slot;
 use crate::validator::{
     cedar_schema::to_json_schema::cedar_type_to_json_type, json_schema::Type, AllDefs,
-    ConditionalName, ValidatorSchemaFragment,
+    ConditionalName, RawName, ValidatorSchemaFragment,
 };
 use itertools::{Either, Itertools};
 use nonempty::nonempty;
@@ -332,17 +333,58 @@ impl Node<Option<cst::Policy>> {
         // 5. All slot names must begin with ?
         // 6. All slots within the template annotation (template()) must be used in the template
         // 7. ?principal and ?resource slots must appear in the scope
-
-        // Some where over here we need to determine which slot is binded to the principal position &
-        // which slot is binded to the resource position
-        // they should also be unique
-        // a naive implementation can possibly just traverse the principal constraint and resource constraint: NO PRINCIPAL CONSTRAINT DOES NOT HAVE ENOUGH INFO
-
-        // Current impl -> change entity reference such that it also keeps track of the name of the slot, and then traverse principal constraint and resource
-        // constraint to get the slot
-
+        // 8. Generalized slots that appear in the scope can not be reused again in the scope
         let (maybe_slot_in_principal, maybe_slot_in_resource) =
-            policy.get_principal_resource_slot_in_scope();
+            policy.get_principal_resource_slot_in_scope(); // This only gets generalized slots
+
+        // Construct mapping to make it easier to replace cst slots with ast slots
+        // We can think about using arc for this later, the API will remain the same even if we use clone now
+        let cst_to_ast_slots = match maybe_template_type_annotations {
+            Ok(map) => {
+                let mut output = BTreeMap::new();
+                for (s, t) in &map {
+                    let s = s.clone();
+                    let t = t.clone();
+                    let ast_slot: crate::ast::Slot = crate::ast::Slot {
+                        id: (&s).try_into().unwrap(),
+                        loc: None,
+                    };
+                    if Some(ast_slot.clone()) == maybe_slot_in_principal {
+                        BTreeMap::insert(
+                            &mut output,
+                            s.clone(),
+                            ValidSlotId::GeneralizedSlot {
+                                id: s.clone().try_into().unwrap(),
+                                scope_position: Some(crate::ast::ScopePosition::Principal),
+                                t: map.get(&s).cloned(),
+                            },
+                        );
+                    } else if Some(ast_slot.clone()) == maybe_slot_in_resource {
+                        BTreeMap::insert(
+                            &mut output,
+                            s.clone(),
+                            ValidSlotId::GeneralizedSlot {
+                                id: s.clone().try_into().unwrap(),
+                                scope_position: Some(crate::ast::ScopePosition::Resource),
+                                t: map.get(&s).cloned(),
+                            },
+                        );
+                    } else {
+                        BTreeMap::insert(
+                            &mut output,
+                            s.clone(),
+                            ValidSlotId::GeneralizedSlot {
+                                id: s.clone().try_into().unwrap(),
+                                scope_position: None,
+                                t: map.get(&s).cloned(),
+                            },
+                        );
+                    }
+                }
+                output
+            }
+            Err(_) => BTreeMap::new(),
+        };
 
         // convert scope
         let maybe_scope = policy.extract_scope();
@@ -734,7 +776,7 @@ impl cst::PolicyImpl {
     pub fn get_template_type_annotations<T: Ord>(
         &self,
         slot_constructor: impl Fn(Slot) -> T,
-    ) -> Result<BTreeMap<T, Type<InternalName>>> {
+    ) -> Result<BTreeMap<T, Type<RawName>>> {
         let mut map = BTreeMap::new();
         let mut all_errs: Vec<ParseErrors> = vec![];
         let template_type_annotation = match &self.template_type_annotation {
@@ -757,18 +799,7 @@ impl cst::PolicyImpl {
                         .into_apply(|t, l| Some(Node { node: t, loc: l }))
                         .unwrap(); // Chore: replace unwrap
 
-                    // convert AST type into json_schema Type<InternalName>
-                    let all_defs = AllDefs::new(|| {
-                        std::iter::empty::<&ValidatorSchemaFragment<ConditionalName, ConditionalName>>(
-                        )
-                    });
-
-                    let t = cedar_type_to_json_type(t)
-                        .conditionally_qualify_type_references(None)
-                        .fully_qualify_type_references(&all_defs)
-                        .unwrap();
-
-                    ventry.insert(t);
+                    ventry.insert(cedar_type_to_json_type(t));
                 }
             }
         }
@@ -2221,7 +2252,11 @@ impl TryFrom<&cst::Slot> for ast::SlotId {
         match slot {
             cst::Slot::Principal => Ok(ast::SlotId::principal()),
             cst::Slot::Resource => Ok(ast::SlotId::resource()),
-            cst::Slot::Other(slot) => Err(ToASTErrorKind::InvalidSlot(slot.clone())),
+            cst::Slot::Other(s) => Ok(ast::SlotId::generalized_slot(
+                (*slot).clone().try_into().unwrap(), // Chore: Fix this to just use parse on the SmolStr
+                None,
+                None,
+            )), // Err(ToASTErrorKind::InvalidSlot(slot.clone())),
         }
     }
 }
@@ -2232,7 +2267,7 @@ impl From<ast::SlotId> for cst::Slot {
             ast::SlotId(ast::ValidSlotId::Principal) => cst::Slot::Principal,
             ast::SlotId(ast::ValidSlotId::Resource) => cst::Slot::Resource,
             ast::SlotId(ast::ValidSlotId::GeneralizedSlot { id, .. }) => {
-                cst::Slot::Other(id.to_smolstr())
+                cst::Slot::Other(id.to_smolstr()) // Chore: we need to append a '?' in the front
             }
         }
     }
@@ -4867,14 +4902,14 @@ mod tests {
             //     r#"permit(principal, action, resource in ?baz);"#,
             //     ExpectedErrorMessageBuilder::error("expected an entity uid or matching template slot, found ?baz instead of ?resource").exactly_one_underline("?baz").build(),
             // ),
-            (
-                r#"permit(principal, action, resource) when { principal == ?foo};"#,
-                ExpectedErrorMessageBuilder::error(
-                    "`?foo` is not a valid template slot",
-                ).help(
-                    "a template slot may only be `?principal` or `?resource`",
-                ).exactly_one_underline("?foo").build(),
-            ),
+            // (
+            //     r#"permit(principal, action, resource) when { principal == ?foo};"#,
+            //     ExpectedErrorMessageBuilder::error(
+            //         "`?foo` is not a valid template slot",
+            //     ).help(
+            //         "a template slot may only be `?principal` or `?resource`",
+            //     ).exactly_one_underline("?foo").build(),
+            // ),
 
             (
                 r#"permit(principal, action == ?action, resource);"#,

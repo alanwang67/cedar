@@ -1239,6 +1239,20 @@ mod templates {
         );
     }
 
+    // Chore: Put these test cases in a better position
+    #[test]
+    fn generalized_principal_slot() {
+        assert_policy_typechecks(
+            simple_schema_file(),
+            parse_policy_or_template(
+                None,
+                r#"template(?foo: Bool) => 
+                permit(principal in ?foo, action, resource in ?resource);"#,
+            )
+            .unwrap(),
+        );
+    }
+
     #[test]
     fn resource_slot_safe_body() {
         assert_policy_typechecks(

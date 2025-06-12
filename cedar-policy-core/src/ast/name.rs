@@ -311,7 +311,7 @@ impl SlotId {
     pub fn generalized_slot(
         id: Id,
         scope_position: Option<ScopePosition>,
-        t: Option<Type<InternalName>>,
+        t: Option<Type<RawName>>,
     ) -> Self {
         Self(ValidSlotId::GeneralizedSlot {
             id,
@@ -351,7 +351,7 @@ impl SlotId {
     }
 
     /// Returns the type of a generalized slot if it has one
-    pub fn get_type(&self) -> Option<Type<InternalName>> {
+    pub fn get_type(&self) -> Option<Type<RawName>> {
         match &self.0 {
             ValidSlotId::GeneralizedSlot { t, .. } => t.clone(),
             _ => None,
@@ -393,20 +393,24 @@ impl From<PrincipalOrResource> for ScopePosition {
 }
 
 /// Three possible variants for Slots
-#[derive(Debug, Clone, Educe, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
-#[educe(Hash)]
+#[derive(Debug, Clone, Educe, PartialOrd, Ord, Serialize, Deserialize)]
+#[educe(Hash, PartialEq, Eq)]
 pub(crate) enum ValidSlotId {
     #[serde(rename = "?principal")]
     Principal,
     #[serde(rename = "?resource")]
     Resource,
-    // invariant: scope_position == None means t must be Some
+    // invariant: scope_position == None means that the slot must have a type and therefore t must be Some
     GeneralizedSlot {
         id: Id,
+        #[serde(skip)]
+        #[educe(Hash(ignore))]
+        #[educe(Eq(ignore))]
         scope_position: Option<ScopePosition>,
         #[serde(skip)]
         #[educe(Hash(ignore))]
-        t: Option<Type<InternalName>>,
+        #[educe(Eq(ignore))]
+        t: Option<Type<RawName>>,
     },
 }
 

@@ -106,6 +106,7 @@ impl From<UnreservedId> for Id {
     }
 }
 
+// Chore: Just make a parse function, and then fill this in using that)
 impl TryFrom<cst::Slot> for Id {
     type Error = ParseErrors;
     fn try_from(slot: cst::Slot) -> Result<Self, Self::Error> {

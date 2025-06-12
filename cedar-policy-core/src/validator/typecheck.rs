@@ -40,7 +40,8 @@ use crate::validator::{
         Type,
     },
     validation_errors::{AttributeAccess, LubContext, UnexpectedTypeHelp},
-    ValidationError, ValidationMode, ValidationWarning,
+    AllDefs, ConditionalName, ValidationError, ValidationMode, ValidationWarning,
+    ValidatorSchemaFragment,
 };
 
 use crate::extensions::Extensions;
@@ -404,6 +405,18 @@ impl<'a> SingleEnvTypechecker<'a> {
                 } else if slotid.is_generalized_slot() {
                     match slotid.get_type() {
                         Some(t) => {
+                            // Filler code just to get it to pass the compiler
+                            // Chore: Convert the RawName into internal name here
+                            let all_defs = AllDefs::new(|| {
+                                std::iter::empty::<
+                                    &ValidatorSchemaFragment<ConditionalName, ConditionalName>,
+                                >()
+                            });
+                            let t = t
+                                .conditionally_qualify_type_references(None)
+                                .fully_qualify_type_references(&all_defs)
+                                .unwrap();
+
                             let unresolved = try_jsonschema_type_into_validator_type(
                                 t,
                                 Extensions::all_available(),
