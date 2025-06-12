@@ -403,6 +403,10 @@ impl Node<Option<cst::Policy>> {
         // convert scope
         let maybe_scope = policy.extract_scope(&cst_to_ast_slots);
 
+        println!("{:#?}", maybe_scope.clone().unwrap());
+        // START HERE: To continue forward this implementation we must embed the type of the slot within the principal constraint which means changing the entity 
+        // reference to include that info 
+
         // convert conditions
         let maybe_conds = ParseErrors::transpose(policy.conds.iter().map(|c| {
             let (e, is_when) = c.to_expr::<ast::ExprBuilder<()>>(&cst_to_ast_slots)?;
