@@ -325,6 +325,19 @@ impl Node<Option<cst::Policy>> {
         // convert template annotations
         let maybe_template_type_annotations = policy.get_template_type_annotations(|s| s);
 
+        // Question: Do we want all of the slots that we generate in our AST to include type info, if we do we need to pass these values in
+        // from maybe_template_type_annotations
+        // Answer: We probably do want to do this, just because this is what people would expect
+
+        // The way we are going to go forward is we are now going to pass in cst_to_ast_slots into every invocation of
+        // into_expr
+
+        // This is done just so we can maximally get the error messages
+        let template_type_annotations = match &maybe_template_type_annotations {
+            Ok(v) => v,
+            Err(_) => &BTreeMap::new(),
+        };
+
         // Error Handling: Check each condition
         // 1. Every slot in the condition of the template must have a type annotation
         // 2. ?action and ?context are reserved names
@@ -345,7 +358,7 @@ impl Node<Option<cst::Policy>> {
                 for (s, t) in &map {
                     let s = s.clone();
                     let t = t.clone();
-                    let ast_slot: crate::ast::Slot = crate::ast::Slot {
+                    let ast_slot = ast::Slot {
                         id: (&s).try_into().unwrap(),
                         loc: None,
                     };
@@ -353,30 +366,39 @@ impl Node<Option<cst::Policy>> {
                         BTreeMap::insert(
                             &mut output,
                             s.clone(),
-                            ValidSlotId::GeneralizedSlot {
-                                id: s.clone().try_into().unwrap(),
-                                scope_position: Some(crate::ast::ScopePosition::Principal),
-                                t: map.get(&s).cloned(),
+                            ast::Slot {
+                                id: ast::SlotId::generalized_slot(
+                                    s.clone().try_into().unwrap(),
+                                    Some(crate::ast::ScopePosition::Principal),
+                                    map.get(&s).cloned(),
+                                ),
+                                loc: None,
                             },
                         );
                     } else if Some(ast_slot.clone()) == maybe_slot_in_resource {
                         BTreeMap::insert(
                             &mut output,
                             s.clone(),
-                            ValidSlotId::GeneralizedSlot {
-                                id: s.clone().try_into().unwrap(),
-                                scope_position: Some(crate::ast::ScopePosition::Resource),
-                                t: map.get(&s).cloned(),
+                            ast::Slot {
+                                id: ast::SlotId::generalized_slot(
+                                    s.clone().try_into().unwrap(),
+                                    Some(crate::ast::ScopePosition::Resource),
+                                    map.get(&s).cloned(),
+                                ),
+                                loc: None,
                             },
                         );
                     } else {
                         BTreeMap::insert(
                             &mut output,
                             s.clone(),
-                            ValidSlotId::GeneralizedSlot {
-                                id: s.clone().try_into().unwrap(),
-                                scope_position: None,
-                                t: map.get(&s).cloned(),
+                            ast::Slot {
+                                id: ast::SlotId::generalized_slot(
+                                    s.clone().try_into().unwrap(),
+                                    None,
+                                    map.get(&s).cloned(),
+                                ),
+                                loc: None,
                             },
                         );
                     }
@@ -409,6 +431,7 @@ impl Node<Option<cst::Policy>> {
             }
         }));
 
+        /// Chore: Over here we need to potentially pass in any error messages we get when going through maybe_template_type_annotations
         let (effect, annotations, (principal, action, resource), conds) =
             flatten_tuple_4(maybe_effect, maybe_annotations, maybe_scope, maybe_conds)?;
         Ok(construct_template_policy(
@@ -523,9 +546,8 @@ impl Node<Option<cst::Policy>> {
 
 impl cst::PolicyImpl {
     /// Get the slot that appears in the principal position of the scope in `cst::Policy`
-    pub fn get_principal_resource_slot_in_scope(
-        &self,
-    ) -> (Option<crate::ast::Slot>, Option<crate::ast::Slot>) {
+    pub fn get_principal_resource_slot_in_scope(&self) -> (Option<ast::Slot>, Option<ast::Slot>) {
+        // Chore: Is there a way to do this without relying on extract_scope?
         match self.extract_scope() {
             Ok((p, _, r)) => {
                 let principal_slots = p
@@ -533,14 +555,14 @@ impl cst::PolicyImpl {
                     .as_expr(ast::PrincipalOrResource::Principal)
                     .subexpressions()
                     .flat_map(|subexp| subexp.generalized_slots())
-                    .collect::<Vec<crate::ast::Slot>>();
+                    .collect::<Vec<ast::Slot>>();
 
                 let resource_slots = r
                     .constraint
                     .as_expr(ast::PrincipalOrResource::Principal)
                     .subexpressions()
                     .flat_map(|subexp| subexp.generalized_slots())
-                    .collect::<Vec<crate::ast::Slot>>();
+                    .collect::<Vec<ast::Slot>>();
 
                 // Chore: Subexpression returns every nested structure, there must be a better way to do this
                 (
