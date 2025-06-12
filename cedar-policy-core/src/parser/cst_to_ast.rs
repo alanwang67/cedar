@@ -322,21 +322,12 @@ impl Node<Option<cst::Policy>> {
             ast::Annotation::with_optional_value(value, loc.into_maybe_loc())
         });
 
-        // convert template annotations
-        let maybe_template_type_annotations = policy.get_template_type_annotations(|s| s);
-
         // Question: Do we want all of the slots that we generate in our AST to include type info, if we do we need to pass these values in
         // from maybe_template_type_annotations
         // Answer: We probably do want to do this, just because this is what people would expect
 
         // The way we are going to go forward is we are now going to pass in cst_to_ast_slots into every invocation of
         // into_expr
-
-        // This is done just so we can maximally get the error messages
-        let template_type_annotations = match &maybe_template_type_annotations {
-            Ok(v) => v,
-            Err(_) => &BTreeMap::new(),
-        };
 
         // Error Handling: Check each condition
         // 1. Every slot in the condition of the template must have a type annotation
@@ -350,9 +341,19 @@ impl Node<Option<cst::Policy>> {
         let (maybe_slot_in_principal, maybe_slot_in_resource) =
             policy.get_principal_resource_slot_in_scope(); // This only gets generalized slots
 
+
+        // convert template annotations
+        let maybe_template_type_annotations = policy.get_template_type_annotations(|s| s);
+
+        // This is done just so we can maximally get the error messages
+        let template_type_annotations = match &maybe_template_type_annotations {
+            Ok(v) => v,
+            Err(_) => &BTreeMap::new(),
+        };
+
         // Construct mapping to make it easier to replace cst slots with ast slots
         // We can think about using arc for this later, the API will remain the same even if we use clone now
-        let cst_to_ast_slots = match maybe_template_type_annotations {
+        let cst_to_ast_slots = match maybe_template_type_annotations { // Chore: Ideally we just place this functionality inside get_template_type_annotations
             Ok(map) => {
                 let mut output = BTreeMap::new();
                 for (s, t) in &map {
@@ -366,40 +367,31 @@ impl Node<Option<cst::Policy>> {
                         BTreeMap::insert(
                             &mut output,
                             s.clone(),
-                            ast::Slot {
-                                id: ast::SlotId::generalized_slot(
-                                    s.clone().try_into().unwrap(),
-                                    Some(crate::ast::ScopePosition::Principal),
-                                    map.get(&s).cloned(),
-                                ),
-                                loc: None,
-                            },
+                            ast::SlotId::generalized_slot(
+                                s.clone().try_into().unwrap(),
+                                Some(crate::ast::ScopePosition::Principal),
+                                map.get(&s).cloned(),
+                            ),
                         );
                     } else if Some(ast_slot.clone()) == maybe_slot_in_resource {
                         BTreeMap::insert(
                             &mut output,
                             s.clone(),
-                            ast::Slot {
-                                id: ast::SlotId::generalized_slot(
-                                    s.clone().try_into().unwrap(),
-                                    Some(crate::ast::ScopePosition::Resource),
-                                    map.get(&s).cloned(),
-                                ),
-                                loc: None,
-                            },
+                            ast::SlotId::generalized_slot(
+                                s.clone().try_into().unwrap(),
+                                Some(crate::ast::ScopePosition::Resource),
+                                map.get(&s).cloned(),
+                            ),
                         );
                     } else {
                         BTreeMap::insert(
                             &mut output,
                             s.clone(),
-                            ast::Slot {
-                                id: ast::SlotId::generalized_slot(
-                                    s.clone().try_into().unwrap(),
-                                    None,
-                                    map.get(&s).cloned(),
-                                ),
-                                loc: None,
-                            },
+                            ast::SlotId::generalized_slot(
+                                s.clone().try_into().unwrap(),
+                                None,
+                                map.get(&s).cloned(),
+                            ),
                         );
                     }
                 }
@@ -409,11 +401,11 @@ impl Node<Option<cst::Policy>> {
         };
 
         // convert scope
-        let maybe_scope = policy.extract_scope();
+        let maybe_scope = policy.extract_scope(&cst_to_ast_slots);
 
         // convert conditions
         let maybe_conds = ParseErrors::transpose(policy.conds.iter().map(|c| {
-            let (e, is_when) = c.to_expr::<ast::ExprBuilder<()>>()?;
+            let (e, is_when) = c.to_expr::<ast::ExprBuilder<()>>(&cst_to_ast_slots)?;
 
             let slot_errs = e.slots().map(|slot| {
                 ToASTError::new(
@@ -431,7 +423,7 @@ impl Node<Option<cst::Policy>> {
             }
         }));
 
-        /// Chore: Over here we need to potentially pass in any error messages we get when going through maybe_template_type_annotations
+        // Chore: Over here we need to potentially pass in any error messages we get when going through maybe_template_type_annotations
         let (effect, annotations, (principal, action, resource), conds) =
             flatten_tuple_4(maybe_effect, maybe_annotations, maybe_scope, maybe_conds)?;
         Ok(construct_template_policy(
@@ -548,7 +540,7 @@ impl cst::PolicyImpl {
     /// Get the slot that appears in the principal position of the scope in `cst::Policy`
     pub fn get_principal_resource_slot_in_scope(&self) -> (Option<ast::Slot>, Option<ast::Slot>) {
         // Chore: Is there a way to do this without relying on extract_scope?
-        match self.extract_scope() {
+        match self.extract_scope(&BTreeMap::new()) {
             Ok((p, _, r)) => {
                 let principal_slots = p
                     .constraint
@@ -577,6 +569,7 @@ impl cst::PolicyImpl {
     /// Get the scope constraints from the `cst::Policy`
     pub fn extract_scope(
         &self,
+        cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>
     ) -> Result<(PrincipalConstraint, ActionConstraint, ResourceConstraint)> {
         // Tracks where the last variable in the scope ended. We'll point to
         // this position to indicate where to fill in vars if we're missing one.
@@ -589,7 +582,7 @@ impl cst::PolicyImpl {
                 .as_loc_ref()
                 .map(|loc| loc.end())
                 .or(end_of_last_var);
-            scope1.to_principal_constraint(TolerantAstSetting::NotTolerant)
+            scope1.to_principal_constraint(TolerantAstSetting::NotTolerant, cst_to_ast_slots)
         } else {
             let effect_span = self
                 .effect
@@ -609,7 +602,7 @@ impl cst::PolicyImpl {
                 .as_loc_ref()
                 .map(|loc| loc.end())
                 .or(end_of_last_var);
-            scope2.to_action_constraint(TolerantAstSetting::NotTolerant)
+            scope2.to_action_constraint(TolerantAstSetting::NotTolerant, cst_to_ast_slots)
         } else {
             let effect_span = self
                 .effect
@@ -624,7 +617,7 @@ impl cst::PolicyImpl {
             .into())
         };
         let maybe_resource = if let Some(scope3) = vars.next() {
-            scope3.to_resource_constraint(TolerantAstSetting::NotTolerant)
+            scope3.to_resource_constraint(TolerantAstSetting::NotTolerant, cst_to_ast_slots)
         } else {
             let effect_span = self
                 .effect
@@ -1064,8 +1057,9 @@ impl Node<Option<cst::VariableDef>> {
     fn to_principal_constraint(
         &self,
         tolerant_setting: TolerantAstSetting,
+        cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>
     ) -> Result<PrincipalConstraint> {
-        match self.to_principal_or_resource_constraint(ast::Var::Principal, tolerant_setting)? {
+        match self.to_principal_or_resource_constraint(ast::Var::Principal, tolerant_setting, cst_to_ast_slots)? {
             PrincipalOrResource::Principal(p) => Ok(p),
             PrincipalOrResource::Resource(_) => Err(self
                 .to_ast_err(ToASTErrorKind::IncorrectVariable {
@@ -1079,8 +1073,9 @@ impl Node<Option<cst::VariableDef>> {
     fn to_resource_constraint(
         &self,
         tolerant_setting: TolerantAstSetting,
+        cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>
     ) -> Result<ResourceConstraint> {
-        match self.to_principal_or_resource_constraint(ast::Var::Resource, tolerant_setting)? {
+        match self.to_principal_or_resource_constraint(ast::Var::Resource, tolerant_setting, cst_to_ast_slots)? {
             PrincipalOrResource::Principal(_) => Err(self
                 .to_ast_err(ToASTErrorKind::IncorrectVariable {
                     expected: ast::Var::Resource,
@@ -1095,6 +1090,7 @@ impl Node<Option<cst::VariableDef>> {
         &self,
         expected: ast::Var,
         tolerant_ast: TolerantAstSetting,
+        cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>
     ) -> Result<PrincipalOrResource> {
         let vardef = self.try_as_inner()?;
         let var = vardef.variable.to_var()?;
@@ -1106,7 +1102,7 @@ impl Node<Option<cst::VariableDef>> {
         let c = if let Some((op, rel_expr)) = &vardef.ineq {
             // special check for the syntax `_ in _ is _`
             if op == &cst::RelOp::In {
-                if let Ok(expr) = rel_expr.to_expr::<ast::ExprBuilder<()>>() {
+                if let Ok(expr) = rel_expr.to_expr::<ast::ExprBuilder<()>>(cst_to_ast_slots) {
                     if matches!(expr.expr_kind(), ast::ExprKind::Is { .. }) {
                         return Err(self.to_ast_err(ToASTErrorKind::InvertedIsIn).into());
                     }
@@ -1123,7 +1119,7 @@ impl Node<Option<cst::VariableDef>> {
                 (cst::RelOp::In, None) => Ok(PrincipalOrResourceConstraint::In(eref)),
                 (cst::RelOp::In, Some(entity_type)) => {
                     match entity_type
-                        .to_expr_or_special::<ast::ExprBuilder<()>>()?
+                        .to_expr_or_special::<ast::ExprBuilder<()>>(cst_to_ast_slots)?
                         .into_entity_type()
                     {
                         Ok(et) => Ok(PrincipalOrResourceConstraint::IsIn(Arc::new(et), eref)),
@@ -1144,7 +1140,7 @@ impl Node<Option<cst::VariableDef>> {
             }
         } else if let Some(entity_type) = &vardef.entity_type {
             match entity_type
-                .to_expr_or_special::<ast::ExprBuilder<()>>()?
+                .to_expr_or_special::<ast::ExprBuilder<()>>(cst_to_ast_slots)?
                 .into_entity_type()
             {
                 Ok(et) => Ok(PrincipalOrResourceConstraint::Is(Arc::new(et))),
@@ -1172,6 +1168,7 @@ impl Node<Option<cst::VariableDef>> {
     fn to_action_constraint(
         &self,
         tolerant_setting: TolerantAstSetting,
+        cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>
     ) -> Result<ast::ActionConstraint> {
         let vardef = self.try_as_inner()?;
 
@@ -1198,7 +1195,7 @@ impl Node<Option<cst::VariableDef>> {
             let action_constraint = match op {
                 cst::RelOp::In => {
                     // special check for the syntax `_ in _ is _`
-                    if let Ok(expr) = rel_expr.to_expr::<ast::ExprBuilder<()>>() {
+                    if let Ok(expr) = rel_expr.to_expr::<ast::ExprBuilder<()>>(cst_to_ast_slots) {
                         if matches!(expr.expr_kind(), ast::ExprKind::Is { .. }) {
                             return Err(self.to_ast_err(ToASTErrorKind::IsInActionScope).into());
                         }
@@ -1261,12 +1258,12 @@ impl Node<Option<cst::Cond>> {
     /// `true` if the cond is a `when` clause, `false` if it is an `unless`
     /// clause. (The returned `expr` is already adjusted for this, the `bool` is
     /// for information only.)
-    fn to_expr<Build: ExprBuilder>(&self) -> Result<(Build::Expr, bool)> {
+    fn to_expr<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<(Build::Expr, bool)> {
         let cond = self.try_as_inner()?;
         let is_when = cond.cond.to_cond_is_when()?;
 
         let maybe_expr = match &cond.expr {
-            Some(expr) => expr.to_expr::<Build>(),
+            Some(expr) => expr.to_expr::<Build>(cst_to_ast_slots),
             None => {
                 let ident = match cond.cond.as_inner() {
                     Some(ident) => ident.clone(),
@@ -1497,11 +1494,11 @@ where
 
 impl Node<Option<cst::Expr>> {
     /// convert `cst::Expr` to `ast::Expr`
-    pub fn to_expr<Build: ExprBuilder>(&self) -> Result<Build::Expr> {
-        self.to_expr_or_special::<Build>()?.into_expr::<Build>()
+    pub fn to_expr<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<Build::Expr> {
+        self.to_expr_or_special::<Build>(cst_to_ast_slots)?.into_expr::<Build>()
     }
     pub(crate) fn to_expr_or_special<Build: ExprBuilder>(
-        &self,
+        &self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>
     ) -> Result<ExprOrSpecial<'_, Build::Expr>> {
         let expr_opt = self.try_as_inner()?;
 
@@ -1521,11 +1518,11 @@ impl Node<Option<cst::Expr>> {
         };
 
         match &*expr.expr {
-            cst::ExprData::Or(or) => or.to_expr_or_special::<Build>(),
+            cst::ExprData::Or(or) => or.to_expr_or_special::<Build>(cst_to_ast_slots),
             cst::ExprData::If(i, t, e) => {
-                let maybe_guard = i.to_expr::<Build>();
-                let maybe_then = t.to_expr::<Build>();
-                let maybe_else = e.to_expr::<Build>();
+                let maybe_guard = i.to_expr::<Build>(cst_to_ast_slots);
+                let maybe_then = t.to_expr::<Build>(cst_to_ast_slots);
+                let maybe_else = e.to_expr::<Build>(cst_to_ast_slots);
 
                 let (i, t, e) = flatten_tuple_3(maybe_guard, maybe_then, maybe_else)?;
                 Ok(ExprOrSpecial::Expr {
@@ -1540,11 +1537,11 @@ impl Node<Option<cst::Expr>> {
 }
 
 impl Node<Option<cst::Or>> {
-    fn to_expr_or_special<Build: ExprBuilder>(&self) -> Result<ExprOrSpecial<'_, Build::Expr>> {
+    fn to_expr_or_special<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<ExprOrSpecial<'_, Build::Expr>> {
         let or = self.try_as_inner()?;
 
-        let maybe_first = or.initial.to_expr_or_special::<Build>();
-        let maybe_rest = ParseErrors::transpose(or.extended.iter().map(|i| i.to_expr::<Build>()));
+        let maybe_first = or.initial.to_expr_or_special::<Build>(cst_to_ast_slots);
+        let maybe_rest = ParseErrors::transpose(or.extended.iter().map(|i| i.to_expr::<Build>(cst_to_ast_slots)));
 
         let (first, rest) = flatten_tuple_2(maybe_first, maybe_rest)?;
         if rest.is_empty() {
@@ -1563,14 +1560,14 @@ impl Node<Option<cst::Or>> {
 }
 
 impl Node<Option<cst::And>> {
-    pub(crate) fn to_expr<Build: ExprBuilder>(&self) -> Result<Build::Expr> {
-        self.to_expr_or_special::<Build>()?.into_expr::<Build>()
+    pub(crate) fn to_expr<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<Build::Expr> {
+        self.to_expr_or_special::<Build>(cst_to_ast_slots)?.into_expr::<Build>()
     }
-    fn to_expr_or_special<Build: ExprBuilder>(&self) -> Result<ExprOrSpecial<'_, Build::Expr>> {
+    fn to_expr_or_special<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<ExprOrSpecial<'_, Build::Expr>> {
         let and = self.try_as_inner()?;
 
-        let maybe_first = and.initial.to_expr_or_special::<Build>();
-        let maybe_rest = ParseErrors::transpose(and.extended.iter().map(|i| i.to_expr::<Build>()));
+        let maybe_first = and.initial.to_expr_or_special::<Build>(cst_to_ast_slots);
+        let maybe_rest = ParseErrors::transpose(and.extended.iter().map(|i| i.to_expr::<Build>(cst_to_ast_slots)));
 
         let (first, rest) = flatten_tuple_2(maybe_first, maybe_rest)?;
         if rest.is_empty() {
@@ -1589,19 +1586,19 @@ impl Node<Option<cst::And>> {
 }
 
 impl Node<Option<cst::Relation>> {
-    fn to_expr<Build: ExprBuilder>(&self) -> Result<Build::Expr> {
-        self.to_expr_or_special::<Build>()?.into_expr::<Build>()
+    fn to_expr<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<Build::Expr> {
+        self.to_expr_or_special::<Build>(cst_to_ast_slots)?.into_expr::<Build>()
     }
-    fn to_expr_or_special<Build: ExprBuilder>(&self) -> Result<ExprOrSpecial<'_, Build::Expr>> {
+    fn to_expr_or_special<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<ExprOrSpecial<'_, Build::Expr>> {
         let rel = self.try_as_inner()?;
 
         match rel {
             cst::Relation::Common { initial, extended } => {
-                let maybe_first = initial.to_expr_or_special::<Build>();
+                let maybe_first = initial.to_expr_or_special::<Build>(cst_to_ast_slots);
                 let maybe_rest = ParseErrors::transpose(
                     extended
                         .iter()
-                        .map(|(op, i)| i.to_expr::<Build>().map(|e| (op, e))),
+                        .map(|(op, i)| i.to_expr::<Build>(cst_to_ast_slots).map(|e| (op, e))),
                 );
                 let maybe_extra_elmts = if extended.len() > 1 {
                     Err(self.to_ast_err(ToASTErrorKind::AmbiguousOperators).into())
@@ -1622,8 +1619,8 @@ impl Node<Option<cst::Relation>> {
                 }
             }
             cst::Relation::Has { target, field } => {
-                let maybe_target = target.to_expr::<Build>();
-                let maybe_field = Ok(match field.to_has_rhs::<Build>()? {
+                let maybe_target = target.to_expr::<Build>(cst_to_ast_slots);
+                let maybe_field = Ok(match field.to_has_rhs::<Build>(cst_to_ast_slots)? {
                     Either::Left(s) => nonempty![s],
                     Either::Right(ids) => ids.map(|id| id.into_smolstr()),
                 });
@@ -1638,8 +1635,8 @@ impl Node<Option<cst::Relation>> {
                 })
             }
             cst::Relation::Like { target, pattern } => {
-                let maybe_target = target.to_expr::<Build>();
-                let maybe_pattern = pattern.to_expr_or_special::<Build>()?.into_pattern();
+                let maybe_target = target.to_expr::<Build>(cst_to_ast_slots);
+                let maybe_pattern = pattern.to_expr_or_special::<Build>(cst_to_ast_slots)?.into_pattern();
                 let (target, pattern) = flatten_tuple_2(maybe_target, maybe_pattern)?;
                 Ok(ExprOrSpecial::Expr {
                     expr: Build::new()
@@ -1653,9 +1650,9 @@ impl Node<Option<cst::Relation>> {
                 entity_type,
                 in_entity,
             } => {
-                let maybe_target = target.to_expr::<Build>();
+                let maybe_target = target.to_expr::<Build>(cst_to_ast_slots);
                 let maybe_entity_type = entity_type
-                    .to_expr_or_special::<Build>()?
+                    .to_expr_or_special::<Build>(cst_to_ast_slots)?
                     .into_entity_type()
                     .map_err(|eos| {
                         eos.to_ast_err(ToASTErrorKind::InvalidIsType {
@@ -1674,7 +1671,7 @@ impl Node<Option<cst::Relation>> {
                 let (t, n) = flatten_tuple_2(maybe_target, maybe_entity_type)?;
                 match in_entity {
                     Some(in_entity) => {
-                        let in_expr = in_entity.to_expr::<Build>()?;
+                        let in_expr = in_entity.to_expr::<Build>(cst_to_ast_slots)?;
                         Ok(ExprOrSpecial::Expr {
                             expr: Build::new()
                                 .with_maybe_source_loc(self.loc.as_loc_ref())
@@ -1695,8 +1692,8 @@ impl Node<Option<cst::Relation>> {
 }
 
 impl Node<Option<cst::Add>> {
-    fn to_expr<Build: ExprBuilder>(&self) -> Result<Build::Expr> {
-        self.to_expr_or_special::<Build>()?.into_expr::<Build>()
+    fn to_expr<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<Build::Expr> {
+        self.to_expr_or_special::<Build>(cst_to_ast_slots)?.into_expr::<Build>()
     }
 
     // Peel the grammar onion until we see valid RHS
@@ -1709,7 +1706,7 @@ impl Node<Option<cst::Add>> {
     // This design choice should be noninvasive to existing CST to AST logic,
     // despite producing deadcode.
     pub(crate) fn to_has_rhs<Build: ExprBuilder>(
-        &self,
+        &self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>
     ) -> Result<Either<SmolStr, NonEmpty<UnreservedId>>> {
         let inner @ cst::Add { initial, extended } = self.try_as_inner()?;
         let err = |loc| {
@@ -1754,7 +1751,7 @@ impl Node<Option<cst::Add>> {
                 | cst::Primary::Ref(_)
                 | cst::Primary::Slot(_) => Err(err(item.loc.clone())),
                 cst::Primary::Literal(_) | cst::Primary::Name(_) => {
-                    let item = item.to_expr_or_special::<Build>()?;
+                    let item = item.to_expr_or_special::<Build>(cst_to_ast_slots)?;
                     match (item, access.as_slice()) {
                         (ExprOrSpecial::StrLit { lit, loc }, []) => Ok(Either::Left(
                             to_unescaped_string(lit).map_err(|escape_errs| {
@@ -1803,15 +1800,15 @@ impl Node<Option<cst::Add>> {
     }
 
     pub(crate) fn to_expr_or_special<Build: ExprBuilder>(
-        &self,
+        &self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>
     ) -> Result<ExprOrSpecial<'_, Build::Expr>> {
         let add = self.try_as_inner()?;
 
-        let maybe_first = add.initial.to_expr_or_special::<Build>();
+        let maybe_first = add.initial.to_expr_or_special::<Build>(cst_to_ast_slots);
         let maybe_rest = ParseErrors::transpose(
             add.extended
                 .iter()
-                .map(|&(op, ref i)| i.to_expr::<Build>().map(|e| (op, e))),
+                .map(|&(op, ref i)| i.to_expr::<Build>(cst_to_ast_slots).map(|e| (op, e))),
         );
         let (first, rest) = flatten_tuple_2(maybe_first, maybe_rest)?;
         if !rest.is_empty() {
@@ -1830,15 +1827,15 @@ impl Node<Option<cst::Add>> {
 }
 
 impl Node<Option<cst::Mult>> {
-    fn to_expr<Build: ExprBuilder>(&self) -> Result<Build::Expr> {
-        self.to_expr_or_special::<Build>()?.into_expr::<Build>()
+    fn to_expr<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<Build::Expr> {
+        self.to_expr_or_special::<Build>(cst_to_ast_slots)?.into_expr::<Build>()
     }
-    fn to_expr_or_special<Build: ExprBuilder>(&self) -> Result<ExprOrSpecial<'_, Build::Expr>> {
+    fn to_expr_or_special<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<ExprOrSpecial<'_, Build::Expr>> {
         let mult = self.try_as_inner()?;
 
-        let maybe_first = mult.initial.to_expr_or_special::<Build>();
+        let maybe_first = mult.initial.to_expr_or_special::<Build>(cst_to_ast_slots);
         let maybe_rest = ParseErrors::transpose(mult.extended.iter().map(|&(op, ref i)| {
-            i.to_expr::<Build>().and_then(|e| match op {
+            i.to_expr::<Build>(cst_to_ast_slots).and_then(|e| match op {
                 cst::MultOp::Times => Ok(e),
                 cst::MultOp::Divide => {
                     Err(self.to_ast_err(ToASTErrorKind::UnsupportedDivision).into())
@@ -1864,16 +1861,16 @@ impl Node<Option<cst::Mult>> {
 }
 
 impl Node<Option<cst::Unary>> {
-    fn to_expr<Build: ExprBuilder>(&self) -> Result<Build::Expr> {
-        self.to_expr_or_special::<Build>()?.into_expr::<Build>()
+    fn to_expr<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<Build::Expr> {
+        self.to_expr_or_special::<Build>(cst_to_ast_slots)?.into_expr::<Build>()
     }
-    fn to_expr_or_special<Build: ExprBuilder>(&self) -> Result<ExprOrSpecial<'_, Build::Expr>> {
+    fn to_expr_or_special<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<ExprOrSpecial<'_, Build::Expr>> {
         let unary = self.try_as_inner()?;
 
         match unary.op {
-            None => unary.item.to_expr_or_special::<Build>(),
+            None => unary.item.to_expr_or_special::<Build>(cst_to_ast_slots),
             Some(cst::NegOp::Bang(n)) => {
-                (0..n).fold(unary.item.to_expr_or_special::<Build>(), |inner, _| {
+                (0..n).fold(unary.item.to_expr_or_special::<Build>(cst_to_ast_slots), |inner, _| {
                     inner
                         .and_then(|e| e.into_expr::<Build>())
                         .map(|expr| ExprOrSpecial::Expr {
@@ -1884,7 +1881,7 @@ impl Node<Option<cst::Unary>> {
                         })
                 })
             }
-            Some(cst::NegOp::Dash(0)) => unary.item.to_expr_or_special::<Build>(),
+            Some(cst::NegOp::Dash(0)) => unary.item.to_expr_or_special::<Build>(cst_to_ast_slots),
             Some(cst::NegOp::Dash(c)) => {
                 // Test if there is a negative numeric literal.
                 // A negative numeric literal should match regex pattern
@@ -1918,7 +1915,7 @@ impl Node<Option<cst::Unary>> {
                     (
                         unary
                             .item
-                            .to_expr_or_special::<Build>()
+                            .to_expr_or_special::<Build>(cst_to_ast_slots)
                             .and_then(|i| i.into_expr::<Build>()),
                         c,
                     )
@@ -2029,12 +2026,12 @@ impl Node<Option<cst::Member>> {
         }
     }
 
-    fn to_expr_or_special<Build: ExprBuilder>(&self) -> Result<ExprOrSpecial<'_, Build::Expr>> {
+    fn to_expr_or_special<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<ExprOrSpecial<'_, Build::Expr>> {
         let mem = self.try_as_inner()?;
 
-        let maybe_prim = mem.item.to_expr_or_special::<Build>();
+        let maybe_prim = mem.item.to_expr_or_special::<Build>(cst_to_ast_slots);
         let maybe_accessors =
-            ParseErrors::transpose(mem.access.iter().map(|a| a.to_access::<Build>()));
+            ParseErrors::transpose(mem.access.iter().map(|a| a.to_access::<Build>(cst_to_ast_slots)));
 
         // Return errors in case parsing failed for any element
         let (prim, mut accessors) = flatten_tuple_2(maybe_prim, maybe_accessors)?;
@@ -2155,7 +2152,7 @@ impl Node<Option<cst::Member>> {
 }
 
 impl Node<Option<cst::MemAccess>> {
-    fn to_access<Build: ExprBuilder>(&self) -> Result<AstAccessor<Build::Expr>> {
+    fn to_access<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<AstAccessor<Build::Expr>> { // Chore: Double check if this really needs to be here
         let acc = self.try_as_inner()?;
 
         match acc {
@@ -2164,11 +2161,11 @@ impl Node<Option<cst::MemAccess>> {
                 maybe_ident.map(AstAccessor::Field)
             }
             cst::MemAccess::Call(args) => {
-                let maybe_args = ParseErrors::transpose(args.iter().map(|e| e.to_expr::<Build>()));
+                let maybe_args = ParseErrors::transpose(args.iter().map(|e| e.to_expr::<Build>(cst_to_ast_slots)));
                 maybe_args.map(AstAccessor::Call)
             }
             cst::MemAccess::Index(index) => {
-                let maybe_index = index.to_expr_or_special::<Build>()?.into_string_literal();
+                let maybe_index = index.to_expr_or_special::<Build>(cst_to_ast_slots)?.into_string_literal();
                 maybe_index.map(AstAccessor::Index)
             }
         }
@@ -2176,10 +2173,10 @@ impl Node<Option<cst::MemAccess>> {
 }
 
 impl Node<Option<cst::Primary>> {
-    pub(crate) fn to_expr<Build: ExprBuilder>(&self) -> Result<Build::Expr> {
-        self.to_expr_or_special::<Build>()?.into_expr::<Build>()
+    pub(crate) fn to_expr<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<Build::Expr> {
+        self.to_expr_or_special::<Build>(cst_to_ast_slots)?.into_expr::<Build>()
     }
-    fn to_expr_or_special<Build: ExprBuilder>(&self) -> Result<ExprOrSpecial<'_, Build::Expr>> {
+    fn to_expr_or_special<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<ExprOrSpecial<'_, Build::Expr>> {
         let prim = self.try_as_inner()?;
 
         match prim {
@@ -2190,7 +2187,7 @@ impl Node<Option<cst::Primary>> {
             }),
             cst::Primary::Slot(s) => {
                 s.clone()
-                    .into_expr::<Build>()
+                    .into_expr::<Build>(cst_to_ast_slots)
                     .map(|expr| ExprOrSpecial::Expr {
                         expr,
                         loc: s.loc.clone(),
@@ -2214,12 +2211,12 @@ impl Node<Option<cst::Primary>> {
                     })
                 }
             }
-            cst::Primary::Expr(e) => e.to_expr::<Build>().map(|expr| ExprOrSpecial::Expr {
+            cst::Primary::Expr(e) => e.to_expr::<Build>(cst_to_ast_slots).map(|expr| ExprOrSpecial::Expr {
                 expr,
                 loc: e.loc.clone(),
             }),
             cst::Primary::EList(es) => {
-                let maybe_list = ParseErrors::transpose(es.iter().map(|e| e.to_expr::<Build>()));
+                let maybe_list = ParseErrors::transpose(es.iter().map(|e| e.to_expr::<Build>(cst_to_ast_slots)));
                 maybe_list.map(|list| ExprOrSpecial::Expr {
                     expr: Build::new()
                         .with_maybe_source_loc(self.loc.as_loc_ref())
@@ -2228,7 +2225,7 @@ impl Node<Option<cst::Primary>> {
                 })
             }
             cst::Primary::RInits(is) => {
-                let rec = ParseErrors::transpose(is.iter().map(|i| i.to_init::<Build>()))?;
+                let rec = ParseErrors::transpose(is.iter().map(|i| i.to_init::<Build>(cst_to_ast_slots)))?;
                 let expr = Build::new()
                     .with_maybe_source_loc(self.loc.as_loc_ref())
                     .record(rec)
@@ -2257,12 +2254,21 @@ impl Node<Option<cst::Primary>> {
 }
 
 impl Node<Option<cst::Slot>> {
-    fn into_expr<Build: ExprBuilder>(self) -> Result<Build::Expr> {
-        match self.try_as_inner()?.try_into() {
-            Ok(slot_id) => Ok(Build::new()
+    fn into_expr<Build: ExprBuilder>(
+        self,
+        cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>,
+    ) -> Result<Build::Expr> {
+        let k = self.try_as_inner()?;
+        match cst_to_ast_slots.get(self.try_as_inner()?) {
+            Some(slot_id) => Ok(Build::new()
                 .with_maybe_source_loc(self.loc.as_loc_ref())
-                .slot(slot_id)),
-            Err(e) => Err(self.to_ast_err(e).into()),
+                .slot(slot_id.clone())),
+            None => match k.try_into() {
+                Ok(slot_id) => Ok(Build::new()
+                    .with_maybe_source_loc(self.loc.as_loc_ref())
+                    .slot(slot_id)),
+                Err(e) => Err(self.to_ast_err(e).into()),
+            }, // Chore: not sure if this should be an error, this should be either principal / resource
         }
     }
 }
@@ -2270,11 +2276,12 @@ impl Node<Option<cst::Slot>> {
 impl TryFrom<&cst::Slot> for ast::SlotId {
     type Error = ToASTErrorKind;
 
+    // Chore: Who uses this function again?
     fn try_from(slot: &cst::Slot) -> std::result::Result<Self, Self::Error> {
         match slot {
             cst::Slot::Principal => Ok(ast::SlotId::principal()),
             cst::Slot::Resource => Ok(ast::SlotId::resource()),
-            cst::Slot::Other(s) => Ok(ast::SlotId::generalized_slot(
+            cst::Slot::Other(_s) => Ok(ast::SlotId::generalized_slot(
                 (*slot).clone().try_into().unwrap(), // Chore: Fix this to just use parse on the SmolStr
                 None,
                 None,
@@ -2482,11 +2489,11 @@ impl Node<Option<cst::Literal>> {
 }
 
 impl Node<Option<cst::RecInit>> {
-    fn to_init<Build: ExprBuilder>(&self) -> Result<(SmolStr, Build::Expr)> {
+    fn to_init<Build: ExprBuilder>(&self, cst_to_ast_slots: &BTreeMap<cst::Slot, ast::SlotId>) -> Result<(SmolStr, Build::Expr)> {
         let lit = self.try_as_inner()?;
 
-        let maybe_attr = lit.0.to_expr_or_special::<Build>()?.into_valid_attr();
-        let maybe_value = lit.1.to_expr::<Build>();
+        let maybe_attr = lit.0.to_expr_or_special::<Build>(cst_to_ast_slots)?.into_valid_attr();
+        let maybe_value = lit.1.to_expr::<Build>(cst_to_ast_slots);
 
         flatten_tuple_2(maybe_attr, maybe_value)
     }
@@ -2638,7 +2645,7 @@ mod tests {
     fn assert_parse_expr_succeeds(text: &str) -> Expr {
         text_to_cst::parse_expr(text)
             .expect("failed parser")
-            .to_expr::<ast::ExprBuilder<()>>()
+            .to_expr::<ast::ExprBuilder<()>>(&BTreeMap::new())
             .unwrap_or_else(|errs| {
                 panic!("failed conversion to AST:\n{:?}", miette::Report::new(errs))
             })
@@ -2648,7 +2655,7 @@ mod tests {
     fn assert_parse_expr_fails(text: &str) -> ParseErrors {
         let result = text_to_cst::parse_expr(text)
             .expect("failed parser")
-            .to_expr::<ast::ExprBuilder<()>>();
+            .to_expr::<ast::ExprBuilder<()>>(&BTreeMap::new());
         match result {
             Ok(expr) => {
                 panic!("conversion to AST should have failed, but succeeded with:\n{expr}")

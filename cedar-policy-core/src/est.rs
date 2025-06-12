@@ -177,7 +177,7 @@ impl TryFrom<cst::Policy> for Policy {
             }
         };
         let maybe_effect = policy.effect.to_effect();
-        let maybe_scope = policy.extract_scope();
+        let maybe_scope = policy.extract_scope(&BTreeMap::new()); // Chore: bandaid fix, need to place proper values here
         let maybe_annotations = policy.get_ast_annotations(|v, l| {
             Some(Annotation {
                 val: v?,

@@ -1083,7 +1083,7 @@ impl From<ast::SlotId> for Expr {
 impl TryFrom<&Node<Option<cst::Expr>>> for Expr {
     type Error = ParseErrors;
     fn try_from(e: &Node<Option<cst::Expr>>) -> Result<Expr, ParseErrors> {
-        e.to_expr::<Builder>()
+        e.to_expr::<Builder>(&BTreeMap::new())
     }
 }
 
