@@ -298,6 +298,11 @@ impl SlotId {
         Self(ValidSlotId::Resource)
     }
 
+    /// Create a `generalized_slot`
+    pub fn generalized_slot(id: Id) -> Self {
+        Self(ValidSlotId::Other(id)) // Chore: Throw an error here
+    }
+
     /// Check if a slot represents a principal
     pub fn is_principal(&self) -> bool {
         matches!(self, Self(ValidSlotId::Principal))
@@ -306,6 +311,11 @@ impl SlotId {
     /// Check if a slot represents a resource
     pub fn is_resource(&self) -> bool {
         matches!(self, Self(ValidSlotId::Resource))
+    }
+
+    /// Check if a slot represents a generalized slot
+    pub fn is_generalized_slot(&self) -> bool {
+        matches!(self, Self(ValidSlotId::Other(_)))
     }
 }
 

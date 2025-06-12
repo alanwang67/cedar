@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-use smol_str::SmolStr;
 use crate::validator::cedar_schema::Type;
+use smol_str::SmolStr;
 
 // shortcut because we need CST nodes to potentially be empty,
 // for example, if part of it failed the parse, we can
