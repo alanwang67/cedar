@@ -15,6 +15,7 @@
  */
 
 use smol_str::SmolStr;
+use crate::validator::cedar_schema::Type;
 
 // shortcut because we need CST nodes to potentially be empty,
 // for example, if part of it failed the parse, we can
@@ -32,6 +33,22 @@ pub struct Annotation {
     pub key: Node<Ident>,
     /// value
     pub value: Option<Node<Str>>,
+}
+
+/// Type annotations for generalized templates
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SlotTypePair {
+    /// name
+    pub slot: Node<Slot>,
+    /// type
+    pub t: Node<Type>,
+}
+
+/// Template annotation for generalized templates
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TemplateTypeAnnotation {
+    /// types for the slots
+    pub values: Vec<Node<SlotTypePair>>,
 }
 
 /// Literal strings
@@ -52,6 +69,8 @@ pub enum Str {
 pub struct PolicyImpl {
     /// Annotations
     pub annotations: Vec<Node<Annotation>>,
+    /// Template Annotations
+    pub template_type_annotation: Option<Node<TemplateTypeAnnotation>>,
     /// policy effect
     pub effect: Node<Ident>,
     /// Variables
@@ -388,7 +407,7 @@ pub enum Literal {
 }
 
 /// Template Slots
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Slot {
     /// Slot for Principal Constraints
     Principal,
