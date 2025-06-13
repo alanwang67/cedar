@@ -47,6 +47,7 @@ use crate::ast::{
 };
 use crate::expr_builder::ExprBuilder;
 use crate::fuzzy_match::fuzzy_search_limited;
+use crate::parser::util::flatten_tuple_5;
 use crate::validator::cedar_schema::to_json_schema::cedar_type_to_json_type;
 use crate::validator::{json_schema::Type, RawName};
 use itertools::{Either, Itertools};
@@ -322,62 +323,12 @@ impl Node<Option<cst::Policy>> {
             ast::Annotation::with_optional_value(value, loc.into_maybe_loc())
         });
 
-        let maybe_template_type_annotations = policy.get_template_type_annotations(|s| s);
-
-        // We expand this so we get the maximal amount of error messages
-        let template_type_annotations = match maybe_template_type_annotations {
-            Ok(map) => map,
-            Err(_) => BTreeMap::new(),
-        };
-
-        // Chore: We still need to handle the case where a generalized slot is in the scope but no type is provided,
-        // in this case we will want to store a None for the type and something for the positional argument
-
-        // The plan is to first insert those by checking if whether or not they appear in the BTreeMap, if they do we use their types
-        // if they don't then we assume none
-        // When we then go on to traverse the BTree what we will do is ignore those
-
-        let mut slot_type_position_annotations: BTreeMap<ast::SlotId, SlotTypePosition> =
-            BTreeMap::new();
-
-        if let Some(slot) = maybe_slot_in_principal {
-            match template_type_annotations.get(&(slot.clone().id).into()) {
-                // Chore: fix this unwrap
-                Some(t) => {
-                    let v = SlotTypePosition::new(Some(t.clone()), Some(ScopePosition::Principal));
-                    slot_type_position_annotations.insert(slot.id, v);
-                }
-                None => {
-                    let v = SlotTypePosition::new(None, Some(ScopePosition::Principal));
-                    slot_type_position_annotations.insert(slot.id, v);
-                }
-            }
-        }
-
-        if let Some(slot) = maybe_slot_in_resource {
-            match template_type_annotations.get(&(slot.clone().id).into()) {
-                Some(t) => {
-                    let v = SlotTypePosition::new(Some(t.clone()), Some(ScopePosition::Resource));
-                    slot_type_position_annotations.insert(slot.id, v);
-                }
-                None => {
-                    let v = SlotTypePosition::new(None, Some(ScopePosition::Resource));
-                    slot_type_position_annotations.insert(slot.id, v);
-                }
-            }
-        }
-
-        for (s, t) in template_type_annotations {
-            let t = t.clone();
-            let ast_slotId: ast::SlotId = (&s).try_into().unwrap();
-            if !BTreeMap::contains_key(&slot_type_position_annotations, &ast_slotId) {
-                let v = SlotTypePosition::new(Some(t), None);
-                BTreeMap::insert(&mut slot_type_position_annotations, ast_slotId, v);
-            };
-        }
-
-        // DEBUG
-        println!("{:#?}", slot_type_position_annotations);
+        // convert slot_type_position_annotations
+        let maybe_slot_type_position_annotations = policy.get_template_type_annotations(
+            |s| (&s).try_into().unwrap(),
+            maybe_slot_in_principal,
+            maybe_slot_in_resource,
+        );
 
         // convert scope
         let maybe_scope = policy.extract_scope();
@@ -402,12 +353,24 @@ impl Node<Option<cst::Policy>> {
             }
         }));
 
-        let (effect, annotations, (principal, action, resource), conds) =
-            flatten_tuple_4(maybe_effect, maybe_annotations, maybe_scope, maybe_conds)?;
+        let (
+            effect,
+            annotations,
+            slot_type_position_annotations,
+            (principal, action, resource),
+            conds,
+        ) = flatten_tuple_5(
+            maybe_effect,
+            maybe_annotations,
+            maybe_slot_type_position_annotations,
+            maybe_scope,
+            maybe_conds,
+        )?;
+
         Ok(construct_template_policy(
             id,
             annotations.into(),
-            SlotTypePositionAnnotations::default(), // Chore: Change this once we parse the template type annotations and convert it into this shape
+            slot_type_position_annotations.into(), 
             effect,
             principal,
             action,
@@ -517,7 +480,9 @@ impl Node<Option<cst::Policy>> {
 
 impl cst::PolicyImpl {
     /// Get the slot that appears in the principal position of the scope in `cst::Policy`
-    pub fn get_principal_resource_slot_in_scope(&self) -> (Option<ast::Slot>, Option<ast::Slot>) {
+    pub fn get_principal_resource_slot_in_scope(
+        &self,
+    ) -> (Option<ast::SlotId>, Option<ast::SlotId>) {
         // Chore: Ideally we replace this with a more efficient implementation
         // Question: Why do we need the slot reference?
         // If we don't have the slot reference can we tell whether or not it's a generalized slot or if it's principal, I don't thinks so which is the
@@ -546,8 +511,8 @@ impl cst::PolicyImpl {
 
                 // Chore: Subexpression returns every nested structure, there must be a better way to do this
                 (
-                    principal_slots.get(0).cloned(),
-                    resource_slots.get(0).cloned(),
+                    principal_slots.get(0).map(|v| v.id.clone()),
+                    resource_slots.get(0).map(|v| v.id.clone()),
                 )
             }
             Err(_) => (None, None),
@@ -775,11 +740,13 @@ impl cst::PolicyImpl {
     }
 
     /// Get template type annotations from `cst::Policy`
-    pub fn get_template_type_annotations<T: Ord>(
+    pub fn get_template_type_annotations<T: Ord + Clone>(
         &self,
         slot_constructor: impl Fn(cst::Slot) -> T,
-    ) -> Result<BTreeMap<T, Type<RawName>>> {
-        let mut map = BTreeMap::new();
+        maybe_slot_in_principal: Option<T>,
+        maybe_slot_in_resource: Option<T>,
+    ) -> Result<BTreeMap<T, SlotTypePosition>> {
+        let mut slot_type_position_annotations: BTreeMap<T, SlotTypePosition> = BTreeMap::new();
         let mut all_errs: Vec<ParseErrors> = vec![];
         let template_type_annotation = match &self.template_type_annotation {
             Some(n) => n.try_as_inner()?.values.clone(),
@@ -790,22 +757,65 @@ impl cst::PolicyImpl {
             let slot = slot_type_pair.slot.try_into_inner()?;
             use std::collections::btree_map::Entry;
 
-            match map.entry(slot_constructor(slot)) {
+            match slot_type_position_annotations.entry(slot_constructor(slot.clone())) {
                 Entry::Occupied(_oentry) => {
                     panic!("slot type annotations are required to be unique"); // Chore: Add an error over here
                 }
 
                 Entry::Vacant(ventry) => {
-                    let t = slot_type_pair
-                        .t
-                        .into_apply(|t, l| Some(Node { node: t, loc: l }))
-                        .unwrap(); // Chore: replace unwrap
+                    let t = cedar_type_to_json_type(
+                        slot_type_pair
+                            .t
+                            .into_apply(|t, l| Some(Node { node: t, loc: l }))
+                            .unwrap(),
+                    );
 
-                    ventry.insert(cedar_type_to_json_type(t));
+                    let position = match (
+                        maybe_slot_in_principal.clone(),
+                        maybe_slot_in_resource.clone(),
+                    ) {
+                        (Some(_), Some(_)) => {
+                            panic!("The same slot can not be used in both positions")
+                        }
+                        (Some(v1), None) if slot_constructor(slot.clone()) == v1 => {
+                            Some(ScopePosition::Principal)
+                        }
+                        (None, Some(v2)) if slot_constructor(slot.clone()) == v2 => {
+                            Some(ScopePosition::Resource)
+                        }
+                        (_, _) => None,
+                    };
+
+                    let v = SlotTypePosition::new(Some(t), position);
+                    ventry.insert(v);
                 }
             }
         }
-        Ok(map)
+
+        // insert the maybe_slot_in_principal and maybe_slot_in_resource if they didn't get inserted yet, this occurs when they are
+        // not provided type annotations but appear in the scope
+
+        if let Some(s) = maybe_slot_in_principal {
+            if !slot_type_position_annotations.contains_key(&s) {
+                BTreeMap::insert(
+                    &mut slot_type_position_annotations,
+                    s,
+                    SlotTypePosition::new(None, Some(ScopePosition::Principal)),
+                );
+            };
+        };
+
+        if let Some(s) = maybe_slot_in_resource {
+            if !slot_type_position_annotations.contains_key(&s) {
+                BTreeMap::insert(
+                    &mut slot_type_position_annotations,
+                    s,
+                    SlotTypePosition::new(None, Some(ScopePosition::Resource)),
+                );
+            };
+        };
+
+        Ok(slot_type_position_annotations)
     }
 }
 
