@@ -42,11 +42,11 @@ use super::{cst, AsLocRef, IntoMaybeLoc, Loc, MaybeLoc};
 use crate::ast::expr_allows_errors::ExprWithErrsBuilder;
 use crate::ast::{
     self, ActionConstraint, CallStyle, Integer, PatternElem, PolicySetError, PrincipalConstraint,
-    PrincipalOrResourceConstraint, ResourceConstraint, SlotTypePositionAnnotations, UnreservedId,
+    PrincipalOrResourceConstraint, ResourceConstraint, ScopePosition, SlotTypePosition,
+    SlotTypePositionAnnotations, UnreservedId,
 };
 use crate::expr_builder::ExprBuilder;
 use crate::fuzzy_match::fuzzy_search_limited;
-use crate::parser::cst::Slot;
 use crate::validator::cedar_schema::to_json_schema::cedar_type_to_json_type;
 use crate::validator::{json_schema::Type, RawName};
 use itertools::{Either, Itertools};
@@ -323,6 +323,61 @@ impl Node<Option<cst::Policy>> {
         });
 
         let maybe_template_type_annotations = policy.get_template_type_annotations(|s| s);
+
+        // We expand this so we get the maximal amount of error messages
+        let template_type_annotations = match maybe_template_type_annotations {
+            Ok(map) => map,
+            Err(_) => BTreeMap::new(),
+        };
+
+        // Chore: We still need to handle the case where a generalized slot is in the scope but no type is provided,
+        // in this case we will want to store a None for the type and something for the positional argument
+
+        // The plan is to first insert those by checking if whether or not they appear in the BTreeMap, if they do we use their types
+        // if they don't then we assume none
+        // When we then go on to traverse the BTree what we will do is ignore those
+
+        let mut slot_type_position_annotations: BTreeMap<ast::SlotId, SlotTypePosition> =
+            BTreeMap::new();
+
+        if let Some(slot) = maybe_slot_in_principal {
+            match template_type_annotations.get(&(slot.clone().id).into()) {
+                // Chore: fix this unwrap
+                Some(t) => {
+                    let v = SlotTypePosition::new(Some(t.clone()), Some(ScopePosition::Principal));
+                    slot_type_position_annotations.insert(slot.id, v);
+                }
+                None => {
+                    let v = SlotTypePosition::new(None, Some(ScopePosition::Principal));
+                    slot_type_position_annotations.insert(slot.id, v);
+                }
+            }
+        }
+
+        if let Some(slot) = maybe_slot_in_resource {
+            match template_type_annotations.get(&(slot.clone().id).into()) {
+                Some(t) => {
+                    let v = SlotTypePosition::new(Some(t.clone()), Some(ScopePosition::Resource));
+                    slot_type_position_annotations.insert(slot.id, v);
+                }
+                None => {
+                    let v = SlotTypePosition::new(None, Some(ScopePosition::Resource));
+                    slot_type_position_annotations.insert(slot.id, v);
+                }
+            }
+        }
+
+        for (s, t) in template_type_annotations {
+            let t = t.clone();
+            let ast_slotId: ast::SlotId = (&s).try_into().unwrap();
+            if !BTreeMap::contains_key(&slot_type_position_annotations, &ast_slotId) {
+                let v = SlotTypePosition::new(Some(t), None);
+                BTreeMap::insert(&mut slot_type_position_annotations, ast_slotId, v);
+            };
+        }
+
+        // DEBUG
+        println!("{:#?}", slot_type_position_annotations);
 
         // convert scope
         let maybe_scope = policy.extract_scope();
@@ -722,7 +777,7 @@ impl cst::PolicyImpl {
     /// Get template type annotations from `cst::Policy`
     pub fn get_template_type_annotations<T: Ord>(
         &self,
-        slot_constructor: impl Fn(Slot) -> T,
+        slot_constructor: impl Fn(cst::Slot) -> T,
     ) -> Result<BTreeMap<T, Type<RawName>>> {
         let mut map = BTreeMap::new();
         let mut all_errs: Vec<ParseErrors> = vec![];
@@ -2199,7 +2254,9 @@ impl TryFrom<&cst::Slot> for ast::SlotId {
         match slot {
             cst::Slot::Principal => Ok(ast::SlotId::principal()),
             cst::Slot::Resource => Ok(ast::SlotId::resource()),
-            cst::Slot::Other(slot) => Err(ToASTErrorKind::InvalidSlot(slot.clone())),
+            cst::Slot::Other(_) => Ok(ast::SlotId(ast::ValidSlotId::Other(
+                slot.clone().try_into().unwrap(),
+            ))),
         }
     }
 }
@@ -2209,7 +2266,7 @@ impl From<ast::SlotId> for cst::Slot {
         match slot {
             ast::SlotId(ast::ValidSlotId::Principal) => cst::Slot::Principal,
             ast::SlotId(ast::ValidSlotId::Resource) => cst::Slot::Resource,
-            ast::SlotId(ast::ValidSlotId::Other(id)) => cst::Slot::Other(id.to_smolstr()),
+            ast::SlotId(ast::ValidSlotId::Other(id)) => cst::Slot::Other(id.to_smolstr()), // Chore: We need to add a '?' here
         }
     }
 }

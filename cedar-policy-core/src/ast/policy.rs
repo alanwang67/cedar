@@ -854,14 +854,14 @@ impl StaticPolicy {
     }
 
     /// Get data from an slot_type_position_annotations.
-    pub fn slot_type_position_annotation(&self, key: &Slot) -> Option<&SlotTypePosition> {
+    pub fn slot_type_position_annotation(&self, key: &SlotId) -> Option<&SlotTypePosition> {
         self.0.slot_type_position_annotation(key)
     }
 
     /// Get all slot_type_position_annotations data.
     pub fn slot_type_position_annotations(
         &self,
-    ) -> impl Iterator<Item = (&Slot, &SlotTypePosition)> {
+    ) -> impl Iterator<Item = (&SlotId, &SlotTypePosition)> {
         self.0.slot_type_position_annotations()
     }
 
@@ -1107,7 +1107,7 @@ impl TemplateBody {
     }
 
     /// Get data from an SlotTypePositionAnnotations
-    pub fn slot_type_position_annotation(&self, key: &Slot) -> Option<&SlotTypePosition> {
+    pub fn slot_type_position_annotation(&self, key: &SlotId) -> Option<&SlotTypePosition> {
         match self {
             TemplateBody::TemplateBody(TemplateBodyImpl {
                 slot_type_position_annotations,
@@ -1133,7 +1133,7 @@ impl TemplateBody {
     /// Get all SlotTypePositionAnnotations data.
     pub fn slot_type_position_annotations(
         &self,
-    ) -> impl Iterator<Item = (&Slot, &SlotTypePosition)> {
+    ) -> impl Iterator<Item = (&SlotId, &SlotTypePosition)> {
         match self {
             TemplateBody::TemplateBody(TemplateBodyImpl {
                 slot_type_position_annotations,
