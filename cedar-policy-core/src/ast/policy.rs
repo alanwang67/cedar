@@ -260,6 +260,7 @@ impl Template {
         self.body.slot_type_position_annotations_arc()
     }
 
+    /// Checks to see if the template has a slot in the principal position
     pub fn contains_slot_in_principal_position(&self) -> bool {
         self.body
             .slot_type_position_annotations()
@@ -269,6 +270,7 @@ impl Template {
             || self.slots().any(|s| s.id.is_principal())
     }
 
+    /// Checks to see if the template has a slot in the resource position
     pub fn contains_slot_in_resource_position(&self) -> bool {
         self.body
             .slot_type_position_annotations()
@@ -1636,6 +1638,9 @@ impl EntityReference {
     /// `EntityReference::Slot`, which is always clear from the caller's
     /// context.
     pub fn into_expr(&self, slot: SlotId) -> Expr {
+        // Chore: define a different type rather than option that makes it clearer that when a None value is used it is a user defined slot
+        // Also potentially change the paramter of slot: SlotId to tell us the position of the slot instead and then we can just create
+        // the slot in this function
         match self {
             EntityReference::EUID(euid) => Expr::val(euid.clone()),
             EntityReference::Slot(id, loc) => {

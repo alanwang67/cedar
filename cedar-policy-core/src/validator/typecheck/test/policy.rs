@@ -1327,3 +1327,247 @@ mod templates {
         );
     }
 }
+
+mod generalized_templates {
+    use super::*;
+
+    fn simple_schema_file_1() -> json_schema::NamespaceDefinition<RawName> {
+        serde_json::from_value(serde_json::json!(
+            {
+                "entityTypes": {
+                    "Disk": {
+                        "memberOfTypes": [],
+                        "shape": {
+                            "type": "Record",
+                            "additionalAttributes": false,
+                            "attributes": {
+                                "owner": { "type": "String", "required": true}
+                            }
+                        }
+                    },
+                    "Folder": {
+                        "memberOfTypes": [],
+                        "shape": {
+                            "type": "Record",
+                            "additionalAttributes": false,
+                            "attributes": {
+                                "owner": { "type": "String", "required": true}
+                            }
+                        }
+                    },
+                    "Document": {
+                        "memberOfTypes": [ "Folder" ],
+                        "shape": {
+                            "type": "Record",
+                            "additionalAttributes": false,
+                            "attributes": {
+                                "owner": { "type": "String", "required": true}
+                            }
+                        }
+                    },
+                    "Person": {
+                        "memberOfTypes": [],
+                        "shape": {
+                            "type": "Record",
+                            "additionalAttributes": false,
+                            "attributes": {
+                                "owner": { "type": "String", "required": true}
+                            }
+                        }
+                    }
+                },
+                "actions": {
+                    "Navigate": {
+                        "memberOf": [],
+                        "appliesTo": {
+                            "principalTypes": ["Person"],
+                            "resourceTypes": ["Disk", "Folder", "Document"]
+                        }
+                    }
+                }
+            }
+        ))
+        .expect("Expected valid schema")
+    }
+
+    fn simple_schema_file_2() -> json_schema::NamespaceDefinition<RawName> {
+        serde_json::from_value(serde_json::json!(
+            {
+                "entityTypes": {
+                    "Employee": {
+                        "memberOfTypes": [],
+                        "shape": {
+                            "type": "Record",
+                            "additionalAttributes": false,
+                            "attributes": {
+                            }
+                        }
+                    },
+                    "InternalServices": {
+                        "memberOfTypes": [],
+                        "shape": {
+                            "type": "Record",
+                            "additionalAttributes": false,
+                            "attributes": {
+                            }
+                        }
+                    },
+                },
+                "actions": {
+                    "Access": {
+                        "memberOf": [],
+                        "appliesTo": {
+                            "principalTypes": ["Employee"],
+                            "resourceTypes": ["InternalServices"],
+                            "context": {
+                                "type": "Record",
+                                "attributes": {
+                                    "date": { "type": "datetime" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        ))
+        .expect("Expected valid schema")
+    }
+
+    fn simple_schema_file_3() -> json_schema::NamespaceDefinition<RawName> {
+        serde_json::from_value(serde_json::json!(
+            {
+                "entityTypes": {
+                    "Person": {
+                        "memberOfTypes": [],
+                        "shape": {
+                            "type": "Record",
+                            "additionalAttributes": false,
+                            "attributes": {
+                                "graduationDate": { "type": "datetime" }
+                            }
+                        }
+                    },
+                    "Department": {
+                        "memberOfTypes": [],
+                        "shape": {
+                            "type": "Record",
+                            "additionalAttributes": false,
+                            "attributes": {
+                                "name": { "type" : "String" }
+                            }
+                        }
+                    },
+                    "InternalDoc": {
+                        "memberOfTypes": ["Department"],
+                        "shape": {
+                            "type": "Record",
+                            "additionalAttributes": false,
+                            "attributes": {
+                                "published": { "type": "datetime" }
+                            }
+                        }
+                    },
+                },
+                "actions": {
+                    "View": {
+                        "memberOf": [],
+                        "appliesTo": {
+                            "principalTypes": ["Person"],
+                            "resourceTypes": ["InternalDoc"],
+                            "context": {
+                                "type": "Record",
+                                "attributes": {
+                                    "date": { "type": "datetime" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        ))
+        .expect("Expected valid schema")
+    }
+
+    #[test]
+    fn generalized_slot_rfc_example_1() {
+        // Chore: there is a bug here, somehow this is permitted
+        assert_policy_typechecks(
+            simple_schema_file_1(),
+            parse_policy_or_template(
+                None,
+                r#"permit(
+                        principal == ?person,
+                        action,
+                        resource in ?fs)
+                    when {
+                        ?fs.owner == resource.owner 
+                    };"#,
+            )
+            .unwrap(),
+        );
+    }
+
+    // Chore: we need to do error handling for cases where the namespace is not in the Schema
+    // Chore: do error handling for when there is a generalized slot in the when clause
+    // Chore: try using templates with schemas that have namespaces
+    #[test]
+    fn generalized_slot_rfc_example_2() {
+        assert_policy_typechecks(
+            simple_schema_file_1(),
+            parse_policy_or_template(
+                None,
+                r#"
+                        template(?folder: Folder) =>
+                        permit(
+                        principal == ?principal,
+                        action,
+                        resource in ?resource)
+                        when {
+                            resource in ?folder
+                            || (action == Action::"Navigate" && ?folder in resource)
+                        };"#,
+            )
+            .unwrap(),
+        );
+    }
+
+    #[test]
+    fn generalized_slot_rfc_example_3() {
+        assert_policy_typechecks(
+            simple_schema_file_2(),
+            parse_policy_or_template(
+                None,
+                r#"template(?date: datetime) => 
+                        permit(
+                            principal == ?principal, 
+                            action == Action::"Access",
+                            resource is InternalServices
+                        ) when {
+                            context.date > ?date
+                        };"#,
+            )
+            .unwrap(),
+        );
+    }
+
+    #[test]
+    fn generalized_slot_rfc_example_4() {
+        assert_policy_typechecks(
+            simple_schema_file_3(),
+            parse_policy_or_template(
+                None,
+                r#"template(?department1: University::Department, ?department2: University::Department) => 
+                        permit(
+                        principal == ?principal,
+                        action == Action::"View",
+                        resource 
+                        ) when {
+                            (resource in ?department1 || 
+                            resource in ?department2) &&
+                            context.date < principal.graduationDate 
+                        };"#,
+            )
+            .unwrap(),
+        );
+    }
+}

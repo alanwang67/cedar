@@ -36,6 +36,8 @@ use crate::validator::{
     RawName, ValidationError, ValidationMode,
 };
 
+use std::collections::BTreeMap;
+
 use super::test_utils::{
     assert_exactly_one_diagnostic, assert_policy_typecheck_fails, expr_id_placeholder, get_loc,
 };
@@ -54,6 +56,7 @@ fn assert_typechecks_strict(
         mode: ValidationMode::Strict,
         policy_id: &expr_id_placeholder(),
         request_env,
+        slot_validator_type_position_annotations: &BTreeMap::new(),
     };
     let mut errs = Vec::new();
     let answer =
@@ -81,6 +84,7 @@ fn assert_strict_type_error(
         mode: ValidationMode::Strict,
         policy_id: &expr_id_placeholder(),
         request_env,
+        slot_validator_type_position_annotations: &BTreeMap::new(),
     };
     let mut errs = Vec::new();
     let answer =
@@ -174,6 +178,7 @@ fn strict_typecheck_catches_regular_type_error() {
             mode: ValidationMode::Strict,
             policy_id: &expr_id_placeholder(),
             request_env: &q,
+            slot_validator_type_position_annotations: &BTreeMap::new(),
         };
         let mut errs = Vec::new();
         typechecker.expect_type(
