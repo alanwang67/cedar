@@ -45,7 +45,7 @@ use crate::validator::{
     cedar_schema::SchemaWarning,
     json_schema,
     partition_nonempty::PartitionNonEmpty,
-    types::{Attributes, EntityRecordKind, OpenTag, RequestEnv, Type},
+    types::{Attributes, EntityRecordKind, OpenTag, Primitive, RequestEnv, Type},
     ValidationMode,
 };
 
@@ -235,6 +235,9 @@ pub struct ValidatorSchema {
     /// Map from action id names to the [`ValidatorActionId`] object.
     action_ids: HashMap<EntityUID, ValidatorActionId>,
 
+    /// Map from common type names to the [`ValidatorType`] object.
+    type_defs: HashMap<InternalName, ValidatorType>, // Chore: rename this potentially?
+
     /// For easy lookup, this is a map from action name to `Entity` object
     /// for each action in the schema. This information is contained elsewhere
     /// in the `ValidatorSchema`, but not efficient to extract -- getting the
@@ -282,6 +285,7 @@ impl ValidatorSchema {
     pub fn new(
         entity_types: impl IntoIterator<Item = ValidatorEntityType>,
         action_ids: impl IntoIterator<Item = ValidatorActionId>,
+        type_defs: impl IntoIterator<Item = (InternalName, ValidatorType)>,
     ) -> Self {
         let entity_types = entity_types
             .into_iter()
@@ -291,9 +295,14 @@ impl ValidatorSchema {
             .into_iter()
             .map(|id| (id.name().clone(), id))
             .collect();
+        let type_defs = type_defs
+            .into_iter()
+            .map(|(name, ty)| (name.clone(), ty))
+            .collect();
         Self::new_from_maps(
             entity_types,
             action_ids,
+            type_defs,
             #[cfg(feature = "extended-schema")]
             HashSet::new(),
             #[cfg(feature = "extended-schema")]
@@ -307,6 +316,7 @@ impl ValidatorSchema {
     fn new_from_maps(
         entity_types: HashMap<EntityType, ValidatorEntityType>,
         action_ids: HashMap<EntityUID, ValidatorActionId>,
+        type_defs: HashMap<InternalName, ValidatorType>,
         #[cfg(feature = "extended-schema")] common_types: HashSet<ValidatorCommonType>,
         #[cfg(feature = "extended-schema")] namespaces: HashSet<ValidatorNamespace>,
     ) -> Self {
@@ -317,6 +327,7 @@ impl ValidatorSchema {
             entity_types,
             action_ids,
             actions,
+            type_defs,
             #[cfg(feature = "extended-schema")]
             common_types,
             #[cfg(feature = "extended-schema")]
@@ -456,6 +467,7 @@ impl ValidatorSchema {
             entity_types: HashMap::new(),
             action_ids: HashMap::new(),
             actions: HashMap::new(),
+            type_defs: HashMap::new(),
             #[cfg(feature = "extended-schema")]
             common_types: HashSet::new(),
             #[cfg(feature = "extended-schema")]
@@ -535,6 +547,79 @@ impl ValidatorSchema {
             )?],
             extensions,
         )
+    }
+
+    /// Given a json schema type, convert that to a validator type
+    pub fn json_schema_type_to_validator_type(
+        &self,
+        ty: json_schema::Type<RawName>,
+        extensions: &Extensions<'_>,
+    ) -> Result<Type> {
+        // Chore: double check what we should do w. extensions
+        // we will likely have to add common types here!
+        let mut fragments = std::iter::once(cedar_fragment(extensions)).collect::<Vec<_>>();
+
+        let mut all_defs = AllDefs::new(|| fragments.iter());
+
+        for entity_type in self.entity_type_names() {
+            all_defs.mark_as_defined_as_entity_type(entity_type.name().qualify_with(None));
+        }
+
+        for tyname in primitive_types::<Name>()
+            .map(|(id, _)| Name::unqualified_name(id))
+            .chain(extensions.ext_types().cloned())
+        {
+            if !all_defs.is_defined_as_entity(tyname.as_ref())
+                && !all_defs.is_defined_as_common(tyname.as_ref())
+            {
+                assert!(
+                    tyname.is_unqualified(),
+                    "expected all primitive and extension type names to be unqualified"
+                );
+                fragments.push(single_alias_in_empty_namespace(
+                    tyname.basename().clone(),
+                    tyname.as_ref().qualify_with(Some(&InternalName::__cedar())),
+                    None, // there is no source loc associated with the builtin definitions of primitive and extension types
+                ));
+                all_defs.mark_as_defined_as_common_type(tyname.into());
+            }
+        }
+
+        let mut primitive_common_types: HashMap<InternalName, json_schema::Type<InternalName>> =
+            HashMap::new();
+        let primitive_types: Vec<_> = fragments
+            .into_iter()
+            .map(|frag| frag.fully_qualify_type_references(&all_defs))
+            .partition_nonempty()?;
+        for ns_def in primitive_types.into_iter().flat_map(|f| f.0.into_iter()) {
+            for (name, ty) in ns_def.common_types.defs {
+                match primitive_common_types.entry(name) {
+                    Entry::Vacant(v) => v.insert(ty),
+                    Entry::Occupied(o) => {
+                        return Err(DuplicateCommonTypeError {
+                            ty: o.key().clone(),
+                        }
+                        .into());
+                    }
+                };
+            }
+        }
+
+        let resolver = CommonTypeResolver::new(&primitive_common_types);
+        let mut common_types: HashMap<&InternalName, ValidatorType> =
+            resolver.resolve(extensions)?;
+
+        let schema_common_types = self.type_defs.iter().map(|(name, ty)| (name, ty.clone()));
+
+        common_types.extend(schema_common_types);
+
+        let conditional_ty = ty.conditionally_qualify_type_references(None);
+        let internal_ty = conditional_ty.fully_qualify_type_references(&all_defs)?;
+        let unresolved = try_jsonschema_type_into_validator_type(internal_ty, extensions, None)?;
+
+        unresolved
+            .resolve_common_type_refs(&common_types)
+            .map(|t| t.ty)
     }
 
     /// Construct a [`ValidatorSchema`] from some number of [`ValidatorSchemaFragment`]s.
@@ -820,6 +905,17 @@ impl ValidatorSchema {
             .map(|ct| ValidatorCommonType::new(ct.0, ct.1))
             .collect();
 
+        let type_defs = common_types
+            .clone()
+            .into_iter()
+            .filter(|ct| {
+                // Only collect common types that are not primitives and have location data
+                let ct_name = ct.0.clone();
+                ct_name.loc().is_some() && !Primitive::is_primitive(ct_name.basename().as_ref())
+            })
+            .map(|ct| (ct.0.clone(), ct.1.clone()))
+            .collect();
+
         // Return with an error if there is an undeclared entity or action
         // referenced in any fragment. `{entity,action}_children` are provided
         // for the `undeclared_parent_{entities,actions}` arguments because we
@@ -837,6 +933,7 @@ impl ValidatorSchema {
         Ok(ValidatorSchema::new_from_maps(
             entity_types,
             action_ids,
+            type_defs,
             #[cfg(feature = "extended-schema")]
             common_type_validators,
             #[cfg(feature = "extended-schema")]

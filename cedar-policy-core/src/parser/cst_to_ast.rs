@@ -376,9 +376,6 @@ impl Node<Option<cst::Policy>> {
             };
         }
 
-        // DEBUG
-        println!("{:#?}", slot_type_position_annotations);
-
         // convert scope
         let maybe_scope = policy.extract_scope();
 
@@ -2254,7 +2251,7 @@ impl TryFrom<&cst::Slot> for ast::SlotId {
         match slot {
             cst::Slot::Principal => Ok(ast::SlotId::principal()),
             cst::Slot::Resource => Ok(ast::SlotId::resource()),
-            cst::Slot::Other(_) => Ok(ast::SlotId(ast::ValidSlotId::Other(
+            cst::Slot::Other(_) => Ok(ast::SlotId(ast::ValidSlotId::GeneralizedSlot(
                 slot.clone().try_into().unwrap(),
             ))),
         }
@@ -2266,7 +2263,7 @@ impl From<ast::SlotId> for cst::Slot {
         match slot {
             ast::SlotId(ast::ValidSlotId::Principal) => cst::Slot::Principal,
             ast::SlotId(ast::ValidSlotId::Resource) => cst::Slot::Resource,
-            ast::SlotId(ast::ValidSlotId::Other(id)) => cst::Slot::Other(id.to_smolstr()), // Chore: We need to add a '?' here
+            ast::SlotId(ast::ValidSlotId::GeneralizedSlot(id)) => cst::Slot::Other(id.to_smolstr()), // Chore: We need to add a '?' here
         }
     }
 }

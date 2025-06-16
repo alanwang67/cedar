@@ -20,7 +20,7 @@ use crate::ast::SlotId;
 use crate::validator::{json_schema::Type, RawName};
 use serde::{Deserialize, Serialize};
 
-/// Struct which holds the data for a generalized slot
+/// Struct which holds the type & position of a generalized slot
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug)]
 pub struct SlotTypePositionAnnotations(BTreeMap<SlotId, SlotTypePosition>);
 
@@ -80,13 +80,15 @@ pub enum ScopePosition {
 
 /// Stores the position and type for generalized slots
 pub struct SlotTypePosition {
-    t: Option<Type<RawName>>,
-    position: Option<ScopePosition>,
+    /// Type of slot    
+    pub ty: Option<Type<RawName>>,
+    /// Position of the slot if located in the scope
+    pub position: Option<ScopePosition>,
 }
 
 impl SlotTypePosition {
     /// Create a new slot type position
-    pub fn new(t: Option<Type<RawName>>, position: Option<ScopePosition>) -> Self {
-        Self { t, position }
+    pub fn new(ty: Option<Type<RawName>>, position: Option<ScopePosition>) -> Self {
+        Self { ty, position }
     }
 }

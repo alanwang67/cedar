@@ -300,7 +300,7 @@ impl SlotId {
 
     /// Create a `generalized_slot`
     pub fn generalized_slot(id: Id) -> Self {
-        Self(ValidSlotId::Other(id)) // Chore: Throw an error here
+        Self(ValidSlotId::GeneralizedSlot(id)) // Chore: Throw an error here
     }
 
     /// Check if a slot represents a principal
@@ -315,7 +315,7 @@ impl SlotId {
 
     /// Check if a slot represents a generalized slot
     pub fn is_generalized_slot(&self) -> bool {
-        matches!(self, Self(ValidSlotId::Other(_)))
+        matches!(self, Self(ValidSlotId::GeneralizedSlot(_)))
     }
 }
 
@@ -341,7 +341,7 @@ pub(crate) enum ValidSlotId {
     Principal,
     #[serde(rename = "?resource")]
     Resource,
-    Other(Id),
+    GeneralizedSlot(Id),
 }
 
 impl std::fmt::Display for ValidSlotId {
@@ -349,7 +349,7 @@ impl std::fmt::Display for ValidSlotId {
         let s = match self {
             ValidSlotId::Principal => "principal",
             ValidSlotId::Resource => "resource",
-            ValidSlotId::Other(id) => &id.to_smolstr(),
+            ValidSlotId::GeneralizedSlot(id) => &id.to_smolstr(),
         };
         write!(f, "?{s}")
     }

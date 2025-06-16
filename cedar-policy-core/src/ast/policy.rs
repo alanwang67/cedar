@@ -90,7 +90,7 @@ pub struct Template {
     /// This is maintained by the only public constructors: `new()`, `new_shared()`, and `link_static_policy()`
     ///
     /// Note that `slots` may be empty, in which case this `Template` represents a static policy
-    slots: Vec<Slot>,
+    slots: Vec<Slot>, // Chore: double check on construction that we have generalized slots too
 }
 
 impl From<Template> for TemplateBody {
@@ -241,6 +241,31 @@ impl Template {
     /// Get [`Arc`] owning the annotation data.
     pub fn annotations_arc(&self) -> &Arc<Annotations> {
         self.body.annotations_arc()
+    }
+
+    /// Get data from an slot_type_position_annotation.
+    pub fn slot_type_position_annotation(&self, key: &SlotId) -> Option<&SlotTypePosition> {
+        self.body.slot_type_position_annotation(key)
+    }
+
+    /// Get all slot_type_position_annotations data.
+    pub fn slot_type_position_annotations(
+        &self,
+    ) -> impl Iterator<Item = (&SlotId, &SlotTypePosition)> {
+        self.body.slot_type_position_annotations()
+    }
+
+    /// Get [`Arc`] owning the slot_type_position_annotations data.
+    pub fn slot_type_position_annotations_arc(&self) -> &Arc<SlotTypePositionAnnotations> {
+        self.body.slot_type_position_annotations_arc()
+    }
+
+    pub fn contains_slot_in_principal_position(&self) -> bool {
+        self.body.slot_type_position_annotations().any(|(_, SlotTypePosition{position, ..})| matches!(position, Some(ScopePosition::Principal))) || self.slots().any(|s| s.id.is_principal())
+    }
+
+    pub fn contains_slot_in_resource_position(&self) -> bool {
+        self.body.slot_type_position_annotations().any(|(_, SlotTypePosition{position, ..})| matches!(position, Some(ScopePosition::Resource))) || self.slots().any(|s| s.id.is_resource())
     }
 
     /// Get the condition expression of this template.
