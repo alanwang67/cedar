@@ -26,22 +26,25 @@ pub(crate) use typecheck_answer::TypecheckAnswer;
 
 use std::{borrow::Cow, collections::HashSet, iter::zip};
 
-use crate::validator::{
-    extension_schema::ExtensionFunctionType,
-    extensions::ExtensionSchemas,
-    schema::ValidatorSchema,
-    types::{
-        AttributeType, Capability, CapabilitySet, EntityRecordKind, OpenTag, Primitive, RequestEnv,
-        Type,
+use crate::{
+    ast::ScopePosition,
+    validator::{
+        extension_schema::ExtensionFunctionType,
+        extensions::ExtensionSchemas,
+        schema::ValidatorSchema,
+        types::{
+            AttributeType, Capability, CapabilitySet, EntityRecordKind, OpenTag, Primitive,
+            RequestEnv, Type,
+        },
+        validation_errors::{AttributeAccess, LubContext, UnexpectedTypeHelp},
+        ValidationError, ValidationMode, ValidationWarning,
     },
-    validation_errors::{AttributeAccess, LubContext, UnexpectedTypeHelp},
-    ValidationError, ValidationMode, ValidationWarning,
 };
 
 use crate::{
     ast::{
         BinaryOp, EntityType, EntityUID, Expr, ExprBuilder, ExprKind, Literal, Name, PolicyID,
-        PrincipalOrResourceConstraint, SlotId, Template, UnaryOp, Var,
+        PrincipalOrResourceConstraint, Template, UnaryOp, Var,
     },
     expr_builder::ExprBuilder as _,
 };
@@ -237,14 +240,14 @@ impl<'a> Typechecker<'a> {
             } => Box::new(
                 self.possible_slot_links(
                     t,
-                    SlotId::principal(),
+                    ScopePosition::Principal,
                     principal,
                     t.principal_constraint().as_inner(),
                 )
                 .flat_map(move |p_slot| {
                     self.possible_slot_links(
                         t,
-                        SlotId::resource(),
+                        ScopePosition::Resource,
                         resource,
                         t.resource_constraint().as_inner(),
                     )
@@ -268,11 +271,15 @@ impl<'a> Typechecker<'a> {
     fn possible_slot_links(
         &self,
         t: &Template,
-        slot_id: SlotId,
+        scope: ScopePosition,
         var: &'a EntityType,
         constraint: &PrincipalOrResourceConstraint,
     ) -> Box<dyn Iterator<Item = Option<EntityType>> + 'a> {
-        if t.slots().any(|t_slot| t_slot.id == slot_id) {
+        let slot_in_scope_position = match scope {
+            ScopePosition::Principal => t.contains_slot_in_principal_position(),
+            ScopePosition::Resource => t.contains_slot_in_resource_position(),
+        };
+        if slot_in_scope_position {
             let all_entity_types = self.schema.entity_types();
             match constraint {
                 // The condition is `var = ?slot`, so the policy can only apply

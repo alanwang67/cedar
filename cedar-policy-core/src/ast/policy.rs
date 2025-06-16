@@ -261,11 +261,21 @@ impl Template {
     }
 
     pub fn contains_slot_in_principal_position(&self) -> bool {
-        self.body.slot_type_position_annotations().any(|(_, SlotTypePosition{position, ..})| matches!(position, Some(ScopePosition::Principal))) || self.slots().any(|s| s.id.is_principal())
+        self.body
+            .slot_type_position_annotations()
+            .any(|(_, SlotTypePosition { position, .. })| {
+                matches!(position, Some(ScopePosition::Principal))
+            })
+            || self.slots().any(|s| s.id.is_principal())
     }
 
     pub fn contains_slot_in_resource_position(&self) -> bool {
-        self.body.slot_type_position_annotations().any(|(_, SlotTypePosition{position, ..})| matches!(position, Some(ScopePosition::Resource))) || self.slots().any(|s| s.id.is_resource())
+        self.body
+            .slot_type_position_annotations()
+            .any(|(_, SlotTypePosition { position, .. })| {
+                matches!(position, Some(ScopePosition::Resource))
+            })
+            || self.slots().any(|s| s.id.is_resource())
     }
 
     /// Get the condition expression of this template.
