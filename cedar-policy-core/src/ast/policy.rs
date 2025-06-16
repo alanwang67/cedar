@@ -243,6 +243,18 @@ impl Template {
         self.body.annotations_arc()
     }
 
+    /// Get all slot type position annotations data.
+    pub fn slot_type_position_annotations(
+        &self,
+    ) -> impl Iterator<Item = (&SlotId, &SlotTypePosition)> {
+        self.body.slot_type_position_annotations()
+    }
+
+    /// Get [`Arc`] owning the slot type position annotations data.
+    pub fn slot_type_position_annotations_arc(&self) -> &Arc<SlotTypePositionAnnotations> {
+        self.body.slot_type_position_annotations_arc()
+    }
+
     /// Get the condition expression of this template.
     ///
     /// This will be a conjunction of the template's scope constraints (on

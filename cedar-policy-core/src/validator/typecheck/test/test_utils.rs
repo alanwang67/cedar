@@ -19,6 +19,7 @@
 
 use cool_asserts::assert_matches;
 use itertools::Itertools;
+use std::collections::BTreeMap;
 use std::{collections::HashSet, hash::Hash, sync::Arc};
 
 use crate::ast::{Context, EntityUID, Expr, PolicyID, Request, Template, ACTION_ENTITY_TYPE};
@@ -112,6 +113,7 @@ impl Typechecker<'_> {
             mode: self.mode,
             policy_id,
             request_env: &request_env,
+            slot_validator_type_position_annotations: &BTreeMap::new(),
         };
         let mut type_errors = Vec::new();
         let ans = typechecker.typecheck(&CapabilitySet::new(), e, &mut type_errors);

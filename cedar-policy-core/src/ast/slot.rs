@@ -80,8 +80,10 @@ pub enum ScopePosition {
 
 /// Stores the position and type for generalized slots
 pub struct SlotTypePosition {
-    t: Option<Type<RawName>>,
-    position: Option<ScopePosition>,
+    /// Store the type info
+    pub t: Option<Type<RawName>>,
+    /// Stores if the slot appears in the scope
+    pub position: Option<ScopePosition>,
 }
 
 impl SlotTypePosition {

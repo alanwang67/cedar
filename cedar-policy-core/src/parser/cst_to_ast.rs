@@ -370,7 +370,7 @@ impl Node<Option<cst::Policy>> {
         Ok(construct_template_policy(
             id,
             annotations.into(),
-            slot_type_position_annotations.into(), 
+            slot_type_position_annotations.into(),
             effect,
             principal,
             action,

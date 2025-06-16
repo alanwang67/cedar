@@ -1207,6 +1207,19 @@ mod templates {
     }
 
     #[test]
+    fn generalized_slot() {
+        assert_policy_typechecks(
+            simple_schema_file(),
+            parse_policy_or_template(
+                None,
+                r#"
+                permit(principal == ?foo, action, resource == ?resource) when { ?foo.age };"#,
+            )
+            .unwrap(),
+        );
+    }
+
+    #[test]
     fn principal_in_slot() {
         assert_policy_typechecks(
             simple_schema_file(),

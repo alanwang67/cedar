@@ -24,24 +24,32 @@ mod typecheck_answer;
 use itertools::Itertools;
 pub(crate) use typecheck_answer::TypecheckAnswer;
 
-use std::{borrow::Cow, collections::HashSet, iter::zip};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, HashSet},
+    iter::zip,
+    thread::Scope,
+};
 
-use crate::validator::{
-    extension_schema::ExtensionFunctionType,
-    extensions::ExtensionSchemas,
-    schema::ValidatorSchema,
-    types::{
-        AttributeType, Capability, CapabilitySet, EntityRecordKind, OpenTag, Primitive, RequestEnv,
-        Type,
+use crate::{
+    extensions::Extensions,
+    validator::{
+        extension_schema::ExtensionFunctionType,
+        extensions::ExtensionSchemas,
+        schema::ValidatorSchema,
+        types::{
+            AttributeType, Capability, CapabilitySet, EntityRecordKind, OpenTag, Primitive,
+            RequestEnv, Type,
+        },
+        validation_errors::{AttributeAccess, LubContext, UnexpectedTypeHelp},
+        ValidationError, ValidationMode, ValidationWarning,
     },
-    validation_errors::{AttributeAccess, LubContext, UnexpectedTypeHelp},
-    ValidationError, ValidationMode, ValidationWarning,
 };
 
 use crate::{
     ast::{
         BinaryOp, EntityType, EntityUID, Expr, ExprBuilder, ExprKind, Literal, Name, PolicyID,
-        PrincipalOrResourceConstraint, SlotId, Template, UnaryOp, Var,
+        PrincipalOrResourceConstraint, ScopePosition, SlotId, Template, UnaryOp, Var,
     },
     expr_builder::ExprBuilder as _,
 };
@@ -142,9 +150,17 @@ impl<'a> Typechecker<'a> {
         &'b self,
         t: &'b Template,
     ) -> Vec<(RequestEnv<'b>, PolicyCheck)> {
-        self.apply_typecheck_fn_by_request_env(t, |request_env, policy_id, expr| {
-            self.single_env_typechecking(request_env, policy_id, expr)
-        })
+        self.apply_typecheck_fn_by_request_env(
+            t,
+            |request_env, policy_id, expr, slot_validator_type_position_annotations| {
+                self.single_env_typechecking(
+                    request_env,
+                    policy_id,
+                    expr,
+                    slot_validator_type_position_annotations,
+                )
+            },
+        )
     }
 
     fn single_env_typechecking(
@@ -152,6 +168,10 @@ impl<'a> Typechecker<'a> {
         request_env: &RequestEnv<'_>,
         policy_id: &PolicyID,
         expr: &Expr,
+        slot_validator_type_position_annotations: &BTreeMap<
+            SlotId,
+            (Option<Type>, Option<ScopePosition>),
+        >,
     ) -> PolicyCheck {
         let mut type_errors = Vec::new();
         let single_env_typechecker = SingleEnvTypechecker {
@@ -160,6 +180,7 @@ impl<'a> Typechecker<'a> {
             mode: self.mode,
             policy_id,
             request_env,
+            slot_validator_type_position_annotations,
         };
         let empty_prior_capability = CapabilitySet::new();
         let ans = single_env_typechecker.expect_type(
@@ -187,8 +208,17 @@ impl<'a> Typechecker<'a> {
         &'b self,
         t: &'b Template,
         request_env: &RequestEnv<'b>,
+        slot_validator_type_position_annotations: &BTreeMap<
+            SlotId,
+            (Option<Type>, Option<ScopePosition>),
+        >,
     ) -> PolicyCheck {
-        self.single_env_typechecking(request_env, t.id(), &t.condition())
+        self.single_env_typechecking(
+            request_env,
+            t.id(),
+            &t.condition(),
+            slot_validator_type_position_annotations,
+        )
     }
 
     /// Apply `typecheck_fn` to the given policy in every schema-defined request
@@ -201,10 +231,41 @@ impl<'a> Typechecker<'a> {
         typecheck_fn: F,
     ) -> Vec<(RequestEnv<'b>, C)>
     where
-        F: Fn(&RequestEnv<'b>, &PolicyID, &Expr) -> C,
+        F: Fn(
+            &RequestEnv<'b>,
+            &PolicyID,
+            &Expr,
+            &BTreeMap<SlotId, (Option<Type>, Option<ScopePosition>)>,
+        ) -> C,
     {
         // compute `.condition()` just once, and cache it here
         let cond = t.condition();
+
+        let mut slot_validator_type_position_annotations = BTreeMap::new();
+        for (slot_id, slot_type_position) in t.slot_type_position_annotations() {
+            let ty = slot_type_position.t.clone();
+            let position: Option<ScopePosition> = slot_type_position.position.clone();
+            if ty.is_none() {
+                BTreeMap::insert(
+                    &mut slot_validator_type_position_annotations,
+                    slot_id.clone(),
+                    (None, position.clone()),
+                );
+                continue;
+            }
+
+            let ty = ty.unwrap();
+
+            let validator_ty = self
+                .schema
+                .qualify_type_with_schema(ty, Extensions::all_available());
+
+            BTreeMap::insert(
+                &mut slot_validator_type_position_annotations,
+                slot_id.clone(),
+                (validator_ty.ok(), position.clone()),
+            );
+        }
 
         // Validate each (principal, resource) pair with the substituted policy
         // for the corresponding action.
@@ -212,7 +273,12 @@ impl<'a> Typechecker<'a> {
             .iter()
             .flat_map(|unlinked_e| {
                 self.link_request_env(unlinked_e, t).map(|linked_e| {
-                    let check = typecheck_fn(&linked_e, t.id(), &cond);
+                    let check = typecheck_fn(
+                        &linked_e,
+                        t.id(),
+                        &cond,
+                        &slot_validator_type_position_annotations,
+                    );
                     (linked_e, check)
                 })
             })
@@ -319,6 +385,8 @@ struct SingleEnvTypechecker<'a> {
     policy_id: &'a PolicyID,
     /// The single env which we're performing typechecking for
     request_env: &'a RequestEnv<'a>,
+    slot_validator_type_position_annotations:
+        &'a BTreeMap<SlotId, (Option<Type>, Option<ScopePosition>)>,
 }
 
 impl<'a> SingleEnvTypechecker<'a> {
@@ -395,7 +463,34 @@ impl<'a> SingleEnvTypechecker<'a> {
                         .map(Type::named_entity_reference)
                         .unwrap_or_else(Type::any_entity_reference)
                 } else {
-                    Type::any_entity_reference()
+                    match self.slot_validator_type_position_annotations.get(slotid) {
+                        Some(x) => match x.clone() {
+                            (Some(ty), _) => ty,
+                            (_, Some(p)) if p == ScopePosition::Principal => {
+                                println!(
+                                    "{:#?}",
+                                    self.request_env
+                                        .principal_slot()
+                                        .clone()
+                                        .map(Type::named_entity_reference)
+                                        .unwrap_or_else(Type::any_entity_reference)
+                                );
+                                self.request_env
+                                    .principal_slot()
+                                    .clone()
+                                    .map(Type::named_entity_reference)
+                                    .unwrap_or_else(Type::any_entity_reference)
+                            }
+                            (_, Some(p)) if p == ScopePosition::Resource => self
+                                .request_env
+                                .resource_slot()
+                                .clone()
+                                .map(Type::named_entity_reference)
+                                .unwrap_or_else(Type::any_entity_reference),
+                            (_, _) => Type::any_entity_reference(),
+                        },
+                        None => Type::any_entity_reference(),
+                    }
                 }))
                 .with_same_source_loc(e)
                 .slot(slotid.clone()),

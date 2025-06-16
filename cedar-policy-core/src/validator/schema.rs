@@ -22,7 +22,7 @@
 
 use crate::{
     ast::{Entity, EntityType, EntityUID, InternalName, Name, UnreservedId},
-    entities::{err::EntitiesError, Entities, TCComputation},
+    entities::{err::EntitiesError, Entities, NoEntitiesSchema, TCComputation},
     extensions::Extensions,
     parser::{IntoMaybeLoc, MaybeLoc},
     transitive_closure::compute_tc,
@@ -157,7 +157,8 @@ impl ValidatorSchemaFragment<ConditionalName, ConditionalName> {
 #[derive(Clone, Debug, Educe)]
 #[educe(Eq, PartialEq)]
 pub struct ValidatorType {
-    ty: Type,
+    /// My type
+    pub ty: Type,
     #[cfg(feature = "extended-schema")]
     loc: MaybeLoc,
 }
@@ -234,6 +235,8 @@ pub struct ValidatorSchema {
 
     /// Map from action id names to the [`ValidatorActionId`] object.
     action_ids: HashMap<EntityUID, ValidatorActionId>,
+
+    /// Chore: What should the mapping of common types be?
 
     /// For easy lookup, this is a map from action name to `Entity` object
     /// for each action in the schema. This information is contained elsewhere
@@ -537,6 +540,105 @@ impl ValidatorSchema {
         )
     }
 
+    /// Converts Type<RawName> into Validator Type
+    /// Throws an error if the type does not exist within the Schema
+    /// If a user declares a bool type then instantiate it with that type over the primitive type
+    pub fn qualify_type_with_schema(
+        &self,
+        t: json_schema::Type<RawName>,
+        extensions: &Extensions<'_>,
+    ) -> Result<Type> {
+        // Q: How do we know if this is a common type or if this is a primitive type?
+        // This likely happens from RawName -> ConditionalName translation
+
+        // Chore: Look at what is actually in the ValidatorSchema
+        // how can we determine if a Type<RawName> is an entity type?
+
+        // This will probably look very similiar to the schema function
+        // In this case we are going to assume that there are no entities with a name of primitive type
+
+        // OK SO THIS WORKS NOW to get us the primitive type, now we have to more or less the problem boils
+        // down to given a validator schema, how can we derive which entity type is the correct one
+        // though I don't think we have to worry about scoping since there is no nesting going along,
+        // whatever namespace is prefixed is the namespace we will use. Types defined the same as primitive
+        // types will be given priority !!
+
+        let conditional_type = t.conditionally_qualify_type_references(None);
+
+        // Over here we need to add in the common types from the validator Schema fragment
+        let mut fragments = std::iter::once(cedar_fragment(extensions)).collect::<Vec<_>>();
+
+        println!("Fragments: {:#?}", fragments);
+
+        let mut all_defs = AllDefs::new(|| fragments.iter());
+        // println!("{:#?}", all_defs);
+
+        for entity_type in self.entity_type_names() {
+            all_defs.mark_as_defined_as_entity_type(entity_type.name().qualify_with(None));
+        }
+
+        for tyname in primitive_types::<Name>()
+            .map(|(id, _)| Name::unqualified_name(id))
+            .chain(extensions.ext_types().cloned())
+        {
+            if !all_defs.is_defined_as_entity(tyname.as_ref())
+                && !all_defs.is_defined_as_common(tyname.as_ref())
+            {
+                assert!(
+                    tyname.is_unqualified(),
+                    "expected all primitive and extension type names to be unqualified"
+                );
+                let x = single_alias_in_empty_namespace(
+                    tyname.basename().clone(),
+                    tyname.as_ref().qualify_with(Some(&InternalName::__cedar())),
+                    None, // there is no source loc associated with the builtin definitions of primitive and extension types
+                );
+                println!("singular: {:#?}", x);
+                fragments.push(x);
+                all_defs.mark_as_defined_as_common_type(tyname.into());
+            }
+        }
+
+        // one of these params are conditional name instead of internal name so we must quantify them
+
+        let mut common_types: HashMap<InternalName, json_schema::Type<InternalName>> =
+            HashMap::new();
+        let primitive_types: Vec<_> = fragments
+            .into_iter()
+            .map(|frag| frag.fully_qualify_type_references(&all_defs))
+            .partition_nonempty()?;
+        for ns_def in primitive_types.into_iter().flat_map(|f| f.0.into_iter()) {
+            for (name, ty) in ns_def.common_types.defs {
+                match common_types.entry(name) {
+                    Entry::Vacant(v) => v.insert(ty),
+                    Entry::Occupied(o) => {
+                        return Err(DuplicateCommonTypeError {
+                            ty: o.key().clone(),
+                        }
+                        .into());
+                    }
+                };
+            }
+        }
+
+        let resolver = CommonTypeResolver::new(&common_types);
+        let common_types: HashMap<&InternalName, ValidatorType> = resolver.resolve(extensions)?;
+
+        let unresolved = try_jsonschema_type_into_validator_type(
+            conditional_type
+                .clone()
+                .fully_qualify_type_references(&all_defs)
+                .unwrap(),
+            extensions,
+            None,
+        )?;
+
+        Ok(unresolved
+            .resolve_common_type_refs(&common_types)
+            .unwrap()
+            .ty)
+    }
+
     /// Construct a [`ValidatorSchema`] from some number of [`ValidatorSchemaFragment`]s.
     pub fn from_schema_fragments(
         fragments: impl IntoIterator<Item = ValidatorSchemaFragment<ConditionalName, ConditionalName>>,
@@ -549,6 +651,7 @@ impl ValidatorSchema {
             .chain(std::iter::once(cedar_fragment(extensions)))
             .collect::<Vec<_>>();
 
+        // println!("{:#?}", "this is running");
         // Collect source location data for all the namespaces
         #[cfg(feature = "extended-schema")]
         let validator_namespaces = fragments
@@ -570,6 +673,7 @@ impl ValidatorSchema {
         // (fully-qualified names) in all fragments.
         let mut all_defs = AllDefs::new(|| fragments.iter());
 
+        // println!("Schema all_defs {:#?}", all_defs);
         // Now we have enough information to do the checks required by RFC 70.
         // We do not need all _references_ to types/actions to be fully resolved yet,
         // because RFC 70 does not actually say anything about references, and can be
@@ -619,17 +723,21 @@ impl ValidatorSchema {
             all_defs.mark_as_defined_as_entity_type(action_type);
         }
 
+        // println!("fragments: {:#?}", fragments);
         // Now use `all_defs` to resolve all [`ConditionalName`] type references
         // into fully-qualified [`InternalName`] references.
         // ("Resolve" here just means convert to fully-qualified
         // `InternalName`s; it does not mean inlining common types -- that will
         // come later.)
         // This produces an intermediate form of schema fragment,
-        // `ValidatorSchemaFragment<InternalName, EntityType>`.
+        // `ValidatorSchemaFragment<InternalName, EntityType>`.]
         let fragments: Vec<_> = fragments
             .into_iter()
             .map(|frag| frag.fully_qualify_type_references(&all_defs))
             .partition_nonempty()?;
+
+        // println!("fragments: {:#?}", fragments);
+        println!("{:#?}", cedar_fragment(extensions));
 
         // Now that all references are fully-qualified, we can build the aggregate
         // maps for common types, entity types, and actions, checking that nothing
@@ -688,6 +796,8 @@ impl ValidatorSchema {
                     .insert(name.clone());
             }
         }
+
+        // println!("{:#?}", entity_type_fragments);
         let mut entity_types = entity_type_fragments
             .into_iter()
             .map(|(name, entity_type)| -> Result<_> {
@@ -799,7 +909,6 @@ impl ValidatorSchema {
                 ))
             })
             .partition_nonempty()?;
-
         // We constructed entity types and actions with child maps, but we need
         // transitively closed descendants.
         compute_tc(&mut entity_types, false)
@@ -1180,7 +1289,7 @@ fn single_alias_in_empty_namespace(
 
 /// Get the names of all primitive types, as unqualified `UnreservedId`s,
 /// paired with the primitive [`json_schema::Type`]s they represent
-fn primitive_types<N>() -> impl Iterator<Item = (UnreservedId, json_schema::Type<N>)> {
+pub fn primitive_types<N>() -> impl Iterator<Item = (UnreservedId, json_schema::Type<N>)> {
     // PANIC SAFETY: these are valid `UnreservedId`s
     #[allow(clippy::unwrap_used)]
     [
@@ -1260,6 +1369,28 @@ impl AllDefs {
     /// properly.
     pub fn single_fragment<N, A>(fragment: &ValidatorSchemaFragment<N, A>) -> Self {
         Self::new(|| std::iter::once(fragment))
+    }
+
+    // Chore: We will need to make a function here to convert from Validator Schema -> All Defs
+    // This can't be done right now since we don't have a common types field
+    /// Convert from validator schema into AllDefs
+    pub fn from_validator_schema(schema: ValidatorSchema) -> Self {
+        let entity_defs = schema
+            .entity_types
+            .into_iter()
+            .map(|(k, _)| k.name().qualify_with(None))
+            .collect::<HashSet<InternalName>>();
+        let action_defs = schema
+            .action_ids
+            .into_iter()
+            .map(|(k, _)| k)
+            .collect::<HashSet<EntityUID>>();
+
+        AllDefs {
+            entity_defs,
+            common_defs: HashSet::new(),
+            action_defs,
+        }
     }
 
     /// Is the given (fully-qualified) [`InternalName`] defined as an entity

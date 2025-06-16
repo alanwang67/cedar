@@ -1823,6 +1823,23 @@ mod translator_tests {
     }
 
     #[test]
+    fn generalized_template() {
+        let src = r#"
+        entity test = { open: Bool };
+        "#;
+
+        assert_matches!(
+            collect_warnings(
+                crate::validator::schema::ValidatorSchema::from_cedarschema_str(
+                    src,
+                    Extensions::all_available()
+                )
+            ),
+            Ok(_)
+        );
+    }
+
+    #[test]
     fn entity_named_false() {
         let src = r#"
         entity false = {};
