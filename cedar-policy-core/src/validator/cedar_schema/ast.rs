@@ -300,6 +300,16 @@ pub enum Type {
     Record(Vec<Node<Annotated<AttrDecl>>>),
 }
 
+impl std::fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Type::Ident(p) => write!(f, "{}", p),
+            Type::Set(t) => write!(f, "Set<{}>", (*t).node), 
+            Type::Record(v) => write!(f, "")
+        }
+    }
+}
+
 /// Primitive Type Definitions
 #[derive(Debug, Clone)]
 pub enum PrimitiveType {

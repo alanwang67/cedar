@@ -1556,14 +1556,15 @@ mod generalized_templates {
             simple_schema_file_3(),
             parse_policy_or_template(
                 None,
-                r#"template(?department1: University::Department, ?department2: University::Department) => 
+                r#"template(?department1: University::Department, ?department2: { age: Set<Long>, height: String }) => 
                         permit(
                         principal == ?principal,
                         action == Action::"View",
                         resource 
                         ) when {
                             (resource in ?department1 || 
-                            resource in ?department2) &&
+                            ?department2.age.contains(10)) &&
+                            ?department2.height == 3 && 
                             context.date < principal.graduationDate 
                         };"#,
             )
