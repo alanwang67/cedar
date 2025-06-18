@@ -305,7 +305,9 @@ impl std::fmt::Display for Type {
         match &self {
             Type::Ident(p) => write!(f, "{}", p),
             Type::Set(t) => write!(f, "Set<{}>", (*t).node), 
-            Type::Record(v) => write!(f, "")
+            Type::Record(v) => { 
+                write!(f, "{{ {} }}", v.iter().map(|n| n.node.data.to_string()).collect::<String>())
+            }
         }
     }
 }
@@ -341,6 +343,12 @@ pub struct AttrDecl {
     pub required: bool,
     /// The type of this attribute
     pub ty: Node<Type>,
+}
+
+impl std::fmt::Display for AttrDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} : {} ,", self.name.node.to_string(), self.ty.node.to_string()) 
+    }
 }
 
 /// The target of a [`PRAppDecl`]

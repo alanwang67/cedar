@@ -131,6 +131,7 @@ Type: Node<Option<SType>> = {
             declarations.push((name.node.unwrap().to_string(), ty.node.unwrap().to_string())); 
         }
         let s = declarations.iter().map(|(name, ty)| format!(" {} : {} ,", name, ty)).collect::<String>(); 
+        // The best way forward here might just be by using macros? 
 
         let t = format!("{{ {} }}", s); 
         match parse_type(&t) {
