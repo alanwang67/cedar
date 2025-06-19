@@ -131,7 +131,6 @@ Type: Node<Option<SType>> = {
             declarations.push((name.node.unwrap().to_string(), ty.node.unwrap().to_string())); 
         }
         let s = declarations.iter().map(|(name, ty)| format!(" {} : {} ,", name, ty)).collect::<String>(); 
-        // The best way forward here might just be by using macros? 
 
         let t = format!("{{ {} }}", s); 
         match parse_type(&t) {
@@ -215,6 +214,8 @@ CommonIdent: Node<Option<cst::Ident>> = {
         => Node::with_maybe_source_loc(Some(cst::Ident::Then), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))),
     <l:@L> ELSE <r:@R>
         => Node::with_maybe_source_loc(Some(cst::Ident::Else), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))),
+    <l:@L> <i:SET> <r:@R>
+        => Node::with_maybe_source_loc(Some(cst::Ident::Ident( i.into() )), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))),        
     <l:@L> <i:IDENTIFIER> <r:@R>
         => Node::with_maybe_source_loc(Some(cst::Ident::Ident( i.into() )), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))),
 }

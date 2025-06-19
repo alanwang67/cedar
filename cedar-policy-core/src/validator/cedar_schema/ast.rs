@@ -304,9 +304,15 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
             Type::Ident(p) => write!(f, "{}", p),
-            Type::Set(t) => write!(f, "Set<{}>", (*t).node), 
-            Type::Record(v) => { 
-                write!(f, "{{ {} }}", v.iter().map(|n| n.node.data.to_string()).collect::<String>())
+            Type::Set(t) => write!(f, "Set<{}>", (*t).node),
+            Type::Record(v) => {
+                write!(
+                    f,
+                    "{{ {} }}",
+                    v.iter()
+                        .map(|n| n.node.data.to_string())
+                        .collect::<String>()
+                )
             }
         }
     }
@@ -347,7 +353,12 @@ pub struct AttrDecl {
 
 impl std::fmt::Display for AttrDecl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} : {} ,", self.name.node.to_string(), self.ty.node.to_string()) 
+        write!(
+            f,
+            "{} : {} ,",
+            self.name.node.to_string(),
+            self.ty.node.to_string()
+        )
     }
 }
 

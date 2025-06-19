@@ -727,7 +727,7 @@ pub struct ExpectedTokenConfig {
 }
 
 lazy_static! {
-    static ref POLICY_TOKEN_CONFIG: ExpectedTokenConfig = ExpectedTokenConfig {
+    static ref POLICY_TOKEN_CONFIG: ExpectedTokenConfig = ExpectedTokenConfig { // What does this do?
         friendly_token_names: HashMap::from([
             ("TRUE", "`true`"),
             ("FALSE", "`false`"),
@@ -752,7 +752,7 @@ lazy_static! {
             ("NUMBER", "number"),
             ("STRINGLIT", "string literal"),
         ]),
-        impossible_tokens: HashSet::from(["\"=\"", "\"%\"", "\"/\"", "OTHER_SLOT"]),
+        impossible_tokens: HashSet::from(["\"=\"", "\"%\"", "\"/\"", "OTHER_SLOT"]), // This will likely have to be removed changing some error messages
         special_identifier_tokens: HashSet::from([
             "PERMIT",
             "FORBID",
@@ -768,6 +768,7 @@ lazy_static! {
             "ACTION",
             "RESOURCE",
             "CONTEXT",
+            "SET",
         ]),
         identifier_sentinel: "IDENTIFIER",
         first_set_identifier_tokens: HashSet::from(["TRUE", "FALSE", "IF"]),
