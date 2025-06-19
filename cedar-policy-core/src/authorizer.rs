@@ -277,6 +277,7 @@ mod test {
             pid,
             None,
             Annotations::new(),
+            SlotTypePositionAnnotations::new(),
             e,
             PrincipalConstraint::any(),
             ActionConstraint::any(),

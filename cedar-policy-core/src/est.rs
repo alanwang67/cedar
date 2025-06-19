@@ -40,6 +40,9 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use std::collections::{BTreeMap, HashMap};
 
+// Chore: We will need to remove this
+use crate::ast::SlotTypePositionAnnotations;
+
 #[cfg(feature = "wasm")]
 extern crate tsify;
 
@@ -70,6 +73,7 @@ pub struct Policy {
     #[serde(default)]
     #[serde(skip_serializing_if = "Annotations::is_empty")]
     annotations: Annotations,
+    // Chore: Add another condition over here to account for slot_type_position_annotations
 }
 
 /// Serde JSON structure for a `when` or `unless` clause in the EST format
@@ -289,6 +293,7 @@ impl Policy {
             Some(first) => ast::ExprBuilder::with_data(())
                 .and_nary(first?, conditions_iter.collect::<Result<Vec<_>, _>>()?),
         };
+        // Todo: We will need to translate slot_type_position_annotations from it's EST format into it's AST format
         Ok(ast::Template::new(
             id,
             None,
@@ -302,6 +307,7 @@ impl Policy {
                     )
                 })
                 .collect(),
+            SlotTypePositionAnnotations::new(), // Todo: This needs to be implemented, for now this is here to compile the rest of the code
             self.effect,
             self.principal.try_into()?,
             self.action.try_into()?,

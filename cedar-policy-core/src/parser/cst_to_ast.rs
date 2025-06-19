@@ -344,6 +344,7 @@ impl Node<Option<cst::Policy>> {
         Ok(construct_template_policy(
             id,
             annotations.into(),
+            ast::SlotTypePositionAnnotations::new(), // Todo: This is just to get our code to compile for now
             effect,
             principal,
             action,
@@ -2128,6 +2129,9 @@ impl From<ast::SlotId> for cst::Slot {
         match slot {
             ast::SlotId(ast::ValidSlotId::Principal) => cst::Slot::Principal,
             ast::SlotId(ast::ValidSlotId::Resource) => cst::Slot::Resource,
+            ast::SlotId(ast::ValidSlotId::GeneralizedSlot(id)) => {
+                cst::Slot::Other((String::from("?") + &id.to_string()).to_smolstr())
+            }
         }
     }
 }
@@ -2335,6 +2339,7 @@ impl Node<Option<cst::RecInit>> {
 fn construct_template_policy(
     id: ast::PolicyID,
     annotations: ast::Annotations,
+    slot_type_position_annotations: ast::SlotTypePositionAnnotations,
     effect: ast::Effect,
     principal: ast::PrincipalConstraint,
     action: ast::ActionConstraint,
@@ -2347,6 +2352,7 @@ fn construct_template_policy(
             id,
             loc.into_maybe_loc(),
             annotations,
+            slot_type_position_annotations,
             effect,
             principal,
             action,
