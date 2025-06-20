@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-use crate::ast::*;
+use crate::ast::{self, *};
 use crate::parser::{AsLocRef, IntoMaybeLoc, Loc, MaybeLoc};
 use annotation::{Annotation, Annotations};
 use educe::Educe;
@@ -1446,6 +1446,25 @@ impl PrincipalConstraint {
             _ => self,
         }
     }
+
+    /// Returns the SlotId in the principal contraint 
+    pub fn get_slot_in_principal_constraint(&self) -> Option<SlotId> {
+        match &self.constraint {
+            PrincipalOrResourceConstraint::Eq(EntityReference::Slot(id, _)) => { // ToDo: potentially just write a tryFrom here and have all the logic in one place
+                match id {
+                    Some(id) => Some(ast::SlotId::generalized_slot(id.clone())),
+                    None => Some(ast::SlotId::principal()), 
+                }
+            }, 
+            PrincipalOrResourceConstraint::In(EntityReference::Slot(id, _)) => { // ToDo: potentially just write a tryFrom here and have all the logic in one place
+                match id {
+                    Some(id) => Some(ast::SlotId::generalized_slot(id.clone())),
+                    None => Some(ast::SlotId::principal()), 
+                }
+            },
+            _ => None,
+        }
+    }
 }
 
 impl std::fmt::Display for PrincipalConstraint {
@@ -1551,6 +1570,25 @@ impl ResourceConstraint {
                 constraint: PrincipalOrResourceConstraint::In(EntityReference::EUID(euid)),
             },
             _ => self,
+        }
+    }
+
+    /// Returns the SlotId in the resource contraint 
+    pub fn get_slot_in_resource_constraint(&self) -> Option<SlotId> {
+        match &self.constraint {
+            PrincipalOrResourceConstraint::Eq(EntityReference::Slot(id, _)) => { // ToDo: potentially just write a tryFrom here and have all the logic in one place
+                match id {
+                    Some(id) => Some(ast::SlotId::generalized_slot(id.clone())),
+                    None => Some(ast::SlotId::resource()), 
+                }
+            }, 
+            PrincipalOrResourceConstraint::In(EntityReference::Slot(id, _)) => { // ToDo: potentially just write a tryFrom here and have all the logic in one place
+                match id {
+                    Some(id) => Some(ast::SlotId::generalized_slot(id.clone())),
+                    None => Some(ast::SlotId::resource()), 
+                }
+            },
+            _ => None,
         }
     }
 }

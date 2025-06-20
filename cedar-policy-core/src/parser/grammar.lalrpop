@@ -451,7 +451,7 @@ Slot: Node<Option<cst::Slot>> = {
     <l:@L> RESOURCE_SLOT <r:@R>
         => Node::with_maybe_source_loc(Some(cst::Slot::Resource), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))),
     <l:@L> <s: OTHER_SLOT> <r:@R>
-        => Node::with_maybe_source_loc(Some(cst::Slot::Other(s.into())), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))),
+        => Node::with_maybe_source_loc(Some(cst::Slot::Other(s[1..s.len()].into())), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))),
 }
 
 // LITERAL   := BOOL | INT | STR

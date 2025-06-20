@@ -319,6 +319,16 @@ impl Node<Option<cst::Policy>> {
         // convert scope
         let maybe_scope = policy.extract_scope();
 
+        let (maybe_generalized_slot_in_principal, maybe_generalized_slot_in_resource) = match &maybe_scope { 
+            Ok((p, _, r)) => (p.get_slot_in_principal_constraint(), r.get_slot_in_resource_constraint()), 
+            Err(_) => (None, None) // Any errors caught here will have been caught already by maybe_scope 
+        }; 
+
+        // Catch if the slot in the principal & the slot in the resource are the same here 
+
+        
+
+
         // convert conditions
         let maybe_conds = ParseErrors::transpose(policy.conds.iter().map(|c| {
             let (e, is_when) = c.to_expr::<ast::ExprBuilder<()>>()?;
@@ -671,6 +681,82 @@ impl cst::PolicyImpl {
             Some(errs) => Err(errs),
             None => Ok(annotations),
         }
+    }
+    
+    pub fn get_slot_type_position_annotations (
+        &self,
+        maybe_slot_in_principal: Option<ast::SlotId>,
+        maybe_slot_in_resource: Option<ast::SlotId>,
+    ) -> Result<BTreeMap<ast::SlotId, ast::SlotTypePosition>> {
+        let mut slot_type_position_annotations: BTreeMap<ast::SlotId, ast::SlotTypePosition> = BTreeMap::new();
+        let mut all_errs: Vec<ParseErrors> = vec![];
+        let slot_type_annotations = match &self.slot_type_annotations {
+            Some(n) => n.try_as_inner()?.values.clone(),
+            None => vec![],
+        };
+        for s in slot_type_annotations {
+            let slot_type_pair = s.try_into_inner()?;
+            let slot = slot_type_pair.slot.try_into_inner()?;
+            use std::collections::btree_map::Entry;
+
+            match slot_type_position_annotations.entry((&slot).try_into()?) {
+                Entry::Occupied(_oentry) => {
+                    panic!("slot type annotations are required to be unique"); // ToDo: Add an error over here
+                }
+
+                Entry::Vacant(ventry) => {
+                    let t = crate::validator::cedar_schema::to_json_schema::cedar_type_to_json_type(
+                        slot_type_pair
+                            .ty
+                            .into_apply(|t, l| Some(Node { node: t, loc: l }))
+                            .unwrap(),
+                    );
+
+                    let v = match (
+                        maybe_slot_in_principal.clone(),
+                        maybe_slot_in_resource.clone(),
+                    ) {
+                        (Some(_), Some(_)) => {
+                            panic!("The same slot can not be used in both positions")
+                        }
+                        (Some(v1), None) if (&slot).try_into()? == v1 => {
+                            ast::SlotTypePosition::TyPosition(t, ast::ScopePosition::Principal)
+                        }
+                        (None, Some(v2)) if (&slot).try_into()? == v2 => {
+                            ast::SlotTypePosition::TyPosition(t, ast::ScopePosition::Resource)
+                        }
+                        (_, _) => ast::SlotTypePosition::Ty(t)
+                    };
+
+                    ventry.insert(v);
+                }
+            }
+        }
+
+        // insert the maybe_slot_in_principal and maybe_slot_in_resource if they didn't get inserted yet, this occurs when they are
+        // not provided type annotations but appear in the scope
+
+        if let Some(s) = maybe_slot_in_principal {
+            if !slot_type_position_annotations.contains_key(&s) {
+                BTreeMap::insert(
+                    &mut slot_type_position_annotations,
+                    s,
+                    ast::SlotTypePosition::Position(ast::ScopePosition::Principal),
+                );
+            };
+        };
+
+        if let Some(s) = maybe_slot_in_resource {
+            if !slot_type_position_annotations.contains_key(&s) {
+                BTreeMap::insert(
+                    &mut slot_type_position_annotations,
+                    s,
+                    ast::SlotTypePosition::Position(ast::ScopePosition::Resource),
+                );
+            };
+        };
+
+        Ok(slot_type_position_annotations)
     }
 }
 
@@ -2113,13 +2199,16 @@ impl Node<Option<cst::Slot>> {
 }
 
 impl TryFrom<&cst::Slot> for ast::SlotId {
-    type Error = ToASTErrorKind;
+    type Error = ParseErrors;
 
     fn try_from(slot: &cst::Slot) -> std::result::Result<Self, Self::Error> {
         match slot {
             cst::Slot::Principal => Ok(ast::SlotId::principal()),
             cst::Slot::Resource => Ok(ast::SlotId::resource()),
-            cst::Slot::Other(slot) => Err(ToASTErrorKind::InvalidSlot(slot.clone())),
+            cst::Slot::Other(slot) => {
+                let id = slot.parse()?; 
+                Ok(ast::SlotId::generalized_slot(id))
+            },
         }
     }
 }
