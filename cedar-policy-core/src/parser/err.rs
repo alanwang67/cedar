@@ -768,6 +768,7 @@ lazy_static! {
             "ACTION",
             "RESOURCE",
             "CONTEXT",
+            "SET"
         ]),
         identifier_sentinel: "IDENTIFIER",
         first_set_identifier_tokens: HashSet::from(["TRUE", "FALSE", "IF"]),

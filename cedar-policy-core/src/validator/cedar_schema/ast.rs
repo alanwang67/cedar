@@ -290,7 +290,7 @@ pub struct EnumEntityDecl {
 }
 
 /// Type definitions
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     /// A set of types
     Set(Box<Node<Type>>),
@@ -323,7 +323,7 @@ impl<N> From<PrimitiveType> for json_schema::TypeVariant<N> {
 
 /// Attribute declarations, used in records and entity types.
 /// One [`AttrDecl`] is one key-value pair.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttrDecl {
     /// Name of this attribute
     pub name: Node<SmolStr>,

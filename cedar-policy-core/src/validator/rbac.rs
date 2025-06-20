@@ -397,12 +397,12 @@ impl Validator {
             PrincipalOrResourceConstraint::In(EntityReference::EUID(euid)) => {
                 Box::new(self.schema.get_entity_types_in(euid.as_ref()).into_iter())
             }
-            PrincipalOrResourceConstraint::Eq(EntityReference::Slot(_))
-            | PrincipalOrResourceConstraint::In(EntityReference::Slot(_)) => {
+            PrincipalOrResourceConstraint::Eq(EntityReference::Slot(..)) // ToDo: Double check once we have read the surrounding code if it makes sense to be transparent in the type of slot it is
+            | PrincipalOrResourceConstraint::In(EntityReference::Slot(..)) => {
                 Box::new(self.schema.entity_type_names())
             }
             PrincipalOrResourceConstraint::Is(entity_type)
-            | PrincipalOrResourceConstraint::IsIn(entity_type, EntityReference::Slot(_)) => {
+            | PrincipalOrResourceConstraint::IsIn(entity_type, EntityReference::Slot(..)) => {
                 Box::new(
                     if self.schema.is_known_entity_type(entity_type) {
                         Some(entity_type.as_ref())

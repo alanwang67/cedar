@@ -56,5 +56,5 @@ mod annotation;
 pub use annotation::*;
 mod expr_visitor;
 pub use expr_visitor::*;
-mod slot_info;
-pub use slot_info::*;
+mod generalized_slot;
+pub use generalized_slot::*;

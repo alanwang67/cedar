@@ -16,7 +16,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::ast::SlotId;
+use crate::ast::{PrincipalOrResource, SlotId};
 use crate::validator::{json_schema::Type, RawName};
 use serde::{Deserialize, Serialize};
 
@@ -71,6 +71,15 @@ pub enum ScopePosition {
     Principal,
     /// Resource position in scope
     Resource,
+}
+
+impl From<PrincipalOrResource> for ScopePosition {
+    fn from(v: PrincipalOrResource) -> Self {
+        match v {
+            PrincipalOrResource::Principal => Self::Principal,
+            PrincipalOrResource::Resource => Self::Resource,
+        }
+    }
 }
 
 /// Stores the position and type for generalized slots

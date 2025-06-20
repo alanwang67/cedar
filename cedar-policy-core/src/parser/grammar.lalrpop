@@ -22,6 +22,7 @@ use lalrpop_util::{ParseError, ErrorRecovery};
 use crate::parser::*;
 use crate::parser::err::{RawErrorRecovery, RawUserError};
 use crate::parser::node::Node;
+use crate::validator::cedar_schema::{parser::parse_type, Type as SType};
 
 /// `errors` collects generated errors.
 ///
@@ -60,6 +61,11 @@ match {
     "action" => ACTION,
     "resource" => RESOURCE,
     "context" => CONTEXT,
+
+    // template 
+    "template", 
+    "=>", 
+    "Set" => SET, 
 
     // Valid slots, hardcoded for now, may be generalized later
     "?principal" => PRINCIPAL_SLOT,
@@ -104,16 +110,56 @@ Annotation: Node<Option<cst::Annotation>> = {
     <l:@L> "@" <key:AnyIdent> <value: ("(" <Str> ")")?> <r:@R> => Node::with_maybe_source_loc(Some(cst::Annotation{key,value}), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src))))
 }
 
+SType: Node<Option<SType>> = {
+    <l:@L> <t: Name> <r:@R> => {
+        match parse_type(&t.node.unwrap().to_string()) {
+            Ok(t) => Node::with_maybe_source_loc(Some(t), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))), 
+            Err(e) => (Node::with_source_loc(None, Loc::new(l..r, Arc::clone(src))))
+        }
+    }, 
+    // <l:@L> <t: (SET "<" <Name> ">")> <r:@R> => {
+    //     let t = format!("Set <{}>", &t.node.unwrap().to_string()); 
+    //     match parse_type(&t) {
+    //         Ok(t) => Node::with_maybe_source_loc(Some(t), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))), 
+    //         Err(e) => (Node::with_source_loc(None, Loc::new(l..r, Arc::clone(src))))
+    //     }
+    // }, 
+    // <l:@L> <t: ("{" <Name> ":" <Type> <("," <Name> ":" <Type>)*> "}")> <r:@R> => {
+    //     let mut declarations = vec![(t.0.node.unwrap().to_string(), t.1.node.unwrap().to_string())]; 
+    //     for (name, ty) in t.2 {
+    //         declarations.push((name.node.unwrap().to_string(), ty.node.unwrap().to_string())); 
+    //     }
+    //     let s = declarations.iter().map(|(name, ty)| format!(" {} : {} ,", name, ty)).collect::<String>(); 
+
+    //     let t = format!("{{ {} }}", s); 
+    //     match parse_type(&t) {
+    //         Ok(t) => Node::with_maybe_source_loc(Some(t), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))), 
+    //         Err(e) => (Node::with_source_loc(None, Loc::new(l..r, Arc::clone(src))))
+    //     }
+    // }, 
+}
+
+// SlotType := { Name ':' SType }
+SlotType: Node<Option<cst::SlotType>> = {
+    <l:@L> <slot: Slot> ":" <ty: SType> <r:@R> => (Node::with_source_loc(Some(cst::SlotType{slot, ty}), Loc::new(l..r, Arc::clone(src)))), 
+}
+
+// SlotTypeAnnotations := { 'template' '(' ( SlotType { ',' SlotType } ) ')' '=>' }
+SlotTypeAnnotations: Node<Option<cst::SlotTypeAnnotations>> = {
+    <l:@L> "template" "(" <values: Comma<SlotType>> ")" "=>" <r:@R> => Node::with_source_loc(Some(cst::SlotTypeAnnotations{ values }), Loc::new(l..r, Arc::clone(src)))
+}
+
 // Policy := "label" ('permit' | 'forbid') '(' {VariableDef} ')' {Cond} ;
 pub Policy: Node<Option<cst::Policy>> = {
     <l:@L>
     <annotations:Annotation*>
+    <slot_type_annotations:SlotTypeAnnotations?>
     <effect:AnyIdent>
     "(" <variables: Comma<VariableDef>> ")"
     <conds:Cond*>
     ";"
     <r:@R>
-    => Node::with_maybe_source_loc(Some(cst::Policy::Policy(cst::PolicyImpl{ annotations,effect,variables,conds })), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))),
+    => Node::with_maybe_source_loc(Some(cst::Policy::Policy(cst::PolicyImpl{ annotations,slot_type_annotations,effect,variables,conds })), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))),
     <l:@L> <err:!> ";" <r:@R> => {
         // Tolerant AST creates a valid CST node representing the unparsable policy
         #[cfg(feature = "tolerant-ast")]
@@ -167,6 +213,8 @@ CommonIdent: Node<Option<cst::Ident>> = {
         => Node::with_maybe_source_loc(Some(cst::Ident::Then), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))),
     <l:@L> ELSE <r:@R>
         => Node::with_maybe_source_loc(Some(cst::Ident::Else), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))),
+    <l:@L> <i:SET> <r:@R>
+        => Node::with_maybe_source_loc(Some(cst::Ident::Ident( i.into() )), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))),
     <l:@L> <i:IDENTIFIER> <r:@R>
         => Node::with_maybe_source_loc(Some(cst::Ident::Ident( i.into() )), maybe_loc!(keep_src, Loc::new(l..r, Arc::clone(src)))),
 }
