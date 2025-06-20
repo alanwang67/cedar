@@ -21,7 +21,7 @@ use crate::validator::{json_schema::Type, RawName};
 use serde::{Deserialize, Serialize};
 
 /// Struct which holds the type & position of a generalized slot
-#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct SlotTypePositionAnnotations(BTreeMap<SlotId, SlotTypePosition>);
 
 impl SlotTypePositionAnnotations {
@@ -77,9 +77,16 @@ pub enum ScopePosition {
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum SlotTypePosition {
     /// Type & Position of a slot
-    TyPosition(Type<RawName>, ScopePosition),
+    TyPosition(Type<RawName>, ScopePosition), // We actually can't skip this
     /// Type of a slot
     Ty(Type<RawName>),
     /// Position of a slot
     Position(ScopePosition),
 }
+
+// Likely we have to implement a custom serialization and deserialization for this data structure since
+// we probably won't want ScopePosition to be serialized 
+
+// Are most of the structs straight line serializations of the Rust structs 
+// or is there anything more complicated going on? 
+

@@ -74,6 +74,8 @@ pub struct Policy {
     #[serde(skip_serializing_if = "Annotations::is_empty")]
     annotations: Annotations,
     // Chore: Add another condition over here to account for slot_type_position_annotations
+    #[serde(skip_serializing_if = "SlotTypePositionAnnotations::is_empty")]
+    slot_type_position_annotations: ast::SlotTypePositionAnnotations, 
 }
 
 /// Serde JSON structure for a `when` or `unless` clause in the EST format
@@ -107,6 +109,7 @@ impl Policy {
                 .map(|clause| clause.link(vals))
                 .collect::<Result<Vec<_>, _>>()?,
             annotations: self.annotations,
+            slot_type_position_annotations: self.slot_type_position_annotations,
         })
     }
 
@@ -126,16 +129,20 @@ impl Policy {
                 .map(|clause| clause.sub_entity_literals(mapping))
                 .collect::<Result<Vec<_>, _>>()?,
             annotations: self.annotations,
+            slot_type_position_annotations: self.slot_type_position_annotations,
         })
     }
 
     /// Returns true if this policy is a template, i.e., it has at least one slot.
-    pub fn is_template(&self) -> bool {
+    pub fn is_template(&self) -> bool { // Chore: Who uses this function? We will need to edit has_slot? What type of checks are performed on the EST format? 
         self.principal.has_slot()
             || self.action.has_slot()
             || self.resource.has_slot()
+            || (!self.slot_type_position_annotations.is_empty()) // Chore: does this function get called prior to syntax checks or no? 
             || self.conditions.iter().any(|c| c.has_slot())
     }
+
+    // What if we just check if the type annotations are valid, 
 }
 
 impl Clause {
@@ -160,8 +167,16 @@ impl Clause {
     }
 
     /// Returns true if this clause has a slot.
-    pub fn has_slot(&self) -> bool {
-        // currently, slots are not allowed in clauses
+    pub fn has_slot(&self) -> bool { 
+        // Chore: What I really want to do is make a recursive function on expr to tell me if the expression has a slot or not  
+        // Does expr only contain builder functions? Where would I put a function like that? 
+        // match self {
+        //     Self::When(expr) => match expr {
+        //         Expr::ExprNoExt(e ) => || 
+        //         _ => false,
+        //     }, 
+        //     Self::Unless(expr) => true,
+        // }
         false
     }
 }
@@ -294,6 +309,7 @@ impl Policy {
                 .and_nary(first?, conditions_iter.collect::<Result<Vec<_>, _>>()?),
         };
         // Todo: We will need to translate slot_type_position_annotations from it's EST format into it's AST format
+        // actually we don't neeed to since our slot_type_position_annotations is already in the AST format
         Ok(ast::Template::new(
             id,
             None,
@@ -317,6 +333,8 @@ impl Policy {
     }
 }
 
+// This is in EST I'm assuming because we also want to do error checking on our JSON templates
+// the way error checking works is that we convert it into an AST and then do it    
 impl Clause {
     fn filter_slots(e: ast::Expr, is_when: bool) -> Result<ast::Expr, FromJsonError> {
         let first_slot = e.slots().next();
@@ -331,7 +349,7 @@ impl Clause {
         }
     }
     /// `id` is the ID of the policy the clause belongs to, used only for reporting errors
-    fn try_into_ast(self, id: &ast::PolicyID) -> Result<ast::Expr, FromJsonError> {
+    fn try_into_ast(self, id: &ast::PolicyID) -> Result<ast::Expr, FromJsonError> { // 
         match self {
             Clause::When(expr) => Self::filter_slots(expr.try_into_ast(id)?, true),
             Clause::Unless(expr) => {
@@ -389,6 +407,7 @@ impl<T: Clone> From<ast::Expr<T>> for Clause {
     }
 }
 
+// Chore: Is that what converts the EST format into a Cedar Policy format? 
 impl std::fmt::Display for Policy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (k, v) in self.annotations.0.iter() {

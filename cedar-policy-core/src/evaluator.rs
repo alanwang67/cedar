@@ -395,7 +395,7 @@ impl<'e> Evaluator<'e> {
     ///    it doesn't consider whether we're processing a `Permit` policy or a
     ///    `Forbid` policy.
     pub fn partial_evaluate(&self, p: &Policy) -> Result<Either<bool, Expr>> {
-        match self.partial_interpret(&p.condition(), p.env())? {
+        match self.partial_interpret(&p.condition(), p.env(), p.generalized_env())? { // Chore: We will need to thread this value through the evaluator 
             PartialValue::Value(v) => v.get_as_bool().map(Either::Left),
             PartialValue::Residual(e) => Ok(Either::Right(e)),
         }
@@ -451,7 +451,7 @@ impl<'e> Evaluator<'e> {
         let loc = expr.source_loc(); // the `loc` describing the location of the entire expression
         match expr.expr_kind() {
             ExprKind::Lit(lit) => Ok(lit.clone().into()),
-            ExprKind::Slot(id) => slots
+            ExprKind::Slot(id) => slots // TODO: Here we must also look at the generalized_env
                 .get(id)
                 .ok_or_else(|| {
                     err::EvaluationError::unlinked_slot(id.clone(), loc.into_maybe_loc())

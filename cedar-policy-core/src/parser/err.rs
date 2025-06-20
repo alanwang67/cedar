@@ -752,7 +752,7 @@ lazy_static! {
             ("NUMBER", "number"),
             ("STRINGLIT", "string literal"),
         ]),
-        impossible_tokens: HashSet::from(["\"=\"", "\"%\"", "\"/\"", "OTHER_SLOT"]),
+        impossible_tokens: HashSet::from(["\"=\"", "\"%\"", "\"/\"", "OTHER_SLOT"]), // Chore: fix the test cases that break when removing OTHER_SLOT
         special_identifier_tokens: HashSet::from([
             "PERMIT",
             "FORBID",
@@ -768,6 +768,7 @@ lazy_static! {
             "ACTION",
             "RESOURCE",
             "CONTEXT",
+            "SET"
         ]),
         identifier_sentinel: "IDENTIFIER",
         first_set_identifier_tokens: HashSet::from(["TRUE", "FALSE", "IF"]),

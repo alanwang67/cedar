@@ -147,6 +147,9 @@ impl RefKind for OneOrMultipleRefs {
     }
 }
 
+// Chore: It seems like the best way to solve this problem is just to create another trait for Slots, 
+// and then what we can do is to use that only to traverse the scope to get a SlotId 
+
 impl Node<Option<cst::Expr>> {
     /// Extract a single `EntityUID` from this expression. The expression must
     /// be exactly a single entity literal expression.

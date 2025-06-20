@@ -22,7 +22,7 @@ use itertools::Itertools;
 use miette::Diagnostic;
 use nonempty::{nonempty, NonEmpty};
 use serde::{Deserialize, Serialize};
-use slot_info::SlotTypePositionAnnotations;
+use generalized_slot_info::SlotTypePositionAnnotations;
 use smol_str::SmolStr;
 use std::{
     collections::{HashMap, HashSet},
@@ -516,7 +516,7 @@ impl Policy {
     /// in it.
     pub fn principal_constraint(&self) -> PrincipalConstraint {
         let constraint = self.template.principal_constraint().clone();
-        match self.values.get(&SlotId::principal()) {
+        match self.values.get(&SlotId::principal()) { // Chore: This will have to change if we are storing a generalized slot
             None => constraint,
             Some(principal) => constraint.with_filled_slot(Arc::new(principal.clone())),
         }
@@ -534,7 +534,7 @@ impl Policy {
     /// in it.
     pub fn resource_constraint(&self) -> ResourceConstraint {
         let constraint = self.template.resource_constraint().clone();
-        match self.values.get(&SlotId::resource()) {
+        match self.values.get(&SlotId::resource()) { // Chore: This will have to change if we are storing a generalized slot
             None => constraint,
             Some(resource) => constraint.with_filled_slot(Arc::new(resource.clone())),
         }
@@ -993,7 +993,7 @@ pub struct TemplateBodyImpl {
     annotations: Arc<Annotations>,
     #[educe(Hash(ignore))] // Chore: Ignore the Hash for now since we don't know how to implement it for Type<RawName>
     /// Stores type and position information about generalized slots
-    slot_type_position_annotations: Arc<slot_info::SlotTypePositionAnnotations>,
+    slot_type_position_annotations: Arc<generalized_slot_info::SlotTypePositionAnnotations>,
     /// `Effect` of this policy
     effect: Effect,
     /// Scope constraint for principal. This will be a boolean-valued expression:
@@ -1435,7 +1435,7 @@ impl PrincipalConstraint {
     }
 
     /// Fill in the Slot, if any, with the given EUID
-    pub fn with_filled_slot(self, euid: Arc<EntityUID>) -> Self {
+    pub fn with_filled_slot(self, euid: Arc<EntityUID>) -> Self { // Chore: This potentially needs to be changed to account for generalized slots
         match self.constraint {
             PrincipalOrResourceConstraint::Eq(EntityReference::Slot(_)) => Self {
                 constraint: PrincipalOrResourceConstraint::Eq(EntityReference::EUID(euid)),
@@ -1594,7 +1594,7 @@ impl EntityReference {
     pub fn into_expr(&self, slot: SlotId) -> Expr {
         match self {
             EntityReference::EUID(euid) => Expr::val(euid.clone()),
-            EntityReference::Slot(loc) => Expr::slot(slot).with_maybe_source_loc(loc.clone()),
+            EntityReference::Slot(loc) => Expr::slot(slot).with_maybe_source_loc(loc.clone()), //
         }
     }
 }
@@ -1678,7 +1678,10 @@ pub enum PrincipalOrResourceConstraint {
     IsIn(Arc<EntityType>, EntityReference),
 }
 
-impl PrincipalOrResourceConstraint {
+impl PrincipalOrResourceConstraint { 
+    // Todo: We don't want entity reference to be an arbitrary slot, rather whoever uses these functions must provide the context behind what type of 
+    // slot they want to create     
+
     /// Unconstrained.
     pub fn any() -> Self {
         PrincipalOrResourceConstraint::Any
@@ -1705,7 +1708,7 @@ impl PrincipalOrResourceConstraint {
     }
 
     /// Type constraint additionally constrained to be in a slot.
-    pub fn is_entity_type_in_slot(entity_type: Arc<EntityType>) -> Self {
+    pub fn is_entity_type_in_slot(entity_type: Arc<EntityType>) -> Self { 
         PrincipalOrResourceConstraint::IsIn(entity_type, EntityReference::Slot(None))
     }
 

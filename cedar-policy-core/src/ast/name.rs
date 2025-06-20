@@ -298,6 +298,11 @@ impl SlotId {
         Self(ValidSlotId::Resource)
     }
 
+    /// Create a new generalized slot
+    pub fn generalized_slot(id: Id) -> Self {
+        Self(ValidSlotId::GeneralizedSlot(id))
+    }
+
     /// Check if a slot represents a principal
     pub fn is_principal(&self) -> bool {
         matches!(self, Self(ValidSlotId::Principal))
@@ -306,6 +311,11 @@ impl SlotId {
     /// Check if a slot represents a resource
     pub fn is_resource(&self) -> bool {
         matches!(self, Self(ValidSlotId::Resource))
+    }
+
+    /// Check if a slot represents a generalized slot
+    pub fn is_generalized_slot(&self) -> bool {
+        matches!(self, Self(ValidSlotId::GeneralizedSlot(_)))
     }
 }
 
@@ -324,12 +334,14 @@ impl std::fmt::Display for SlotId {
     }
 }
 
+serde_with::with_prefix!(prefix_to "to.");
+
 /// Two possible variants for Slots
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub(crate) enum ValidSlotId {
     #[serde(rename = "?principal")]
     Principal,
-    #[serde(rename = "?resource")]
+    #[serde(rename = "?resource")] // Question: Will this rename affect deserialize as well? 
     Resource,
     GeneralizedSlot(Id), // Chore: We will have to likely implement a Serde trait to perform renaming here
 }

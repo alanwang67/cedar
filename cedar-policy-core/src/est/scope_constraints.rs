@@ -795,7 +795,7 @@ impl TryFrom<PrincipalConstraint> for ast::PrincipalOrResourceConstraint {
                             )
                         }
                         Some(PrincipalOrResourceInConstraint::Slot { .. }) => {
-                            ast::PrincipalOrResourceConstraint::is_entity_type_in_slot(Arc::new(
+                            ast::PrincipalOrResourceConstraint::is_entity_type_in_slot(Arc::new( // The caller should provide the context needed
                                 entity_type,
                             ))
                         }

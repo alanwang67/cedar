@@ -544,6 +544,17 @@ impl cst::PolicyImpl {
         Ok((principal, action, resource))
     }
 
+    /// Returns the slot in the principal position of the scope
+    pub fn get_slot_in_principal_position_scope(&self ) -> Option<cst::Slot> {
+        // let maybe_principal_slot_cst = self.variables.get(0)?.into_inner().0; 
+        
+
+        // There doesn't seem to be a good way to extract info out of the scope for the slots? 
+        // Most of the previous code written was just written to support having regular slots, how can
+        // we store additional information in it 
+        None
+    }
+
     /// Get the scope constraints from the `cst::Policy`
     #[cfg(feature = "tolerant-ast")]
     pub fn extract_scope_tolerant_ast(
