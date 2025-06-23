@@ -2743,7 +2743,7 @@ impl PolicySet {
         let linked_lossless = template
             .lossless
             .clone()
-            .link(unwrapped_vals.iter().map(|(k, v)| (*k, v)))
+            .link(unwrapped_vals.iter().map(|(k, v)| (k.clone(), v)))
             // The only error case for `lossless.link()` is a template with
             // slots which are not filled by the provided values. `ast.link()`
             // will have already errored if there are any unfilled slots in the
@@ -2815,7 +2815,7 @@ fn is_static_or_link(
                 .ast
                 .env()
                 .iter()
-                .map(|(id, euid)| (*id, euid.clone()))
+                .map(|(id, euid)| (id.clone(), euid.clone()))
                 .collect();
             Ok(Either::Right(TemplateLink {
                 new_id: id.into(),
@@ -3032,13 +3032,13 @@ impl Template {
             ast::PrincipalOrResourceConstraint::In(eref) => {
                 TemplatePrincipalConstraint::In(match eref {
                     ast::EntityReference::EUID(e) => Some(e.as_ref().clone().into()),
-                    ast::EntityReference::Slot(_) => None,
+                    ast::EntityReference::Slot(_, _) => None,
                 })
             }
             ast::PrincipalOrResourceConstraint::Eq(eref) => {
                 TemplatePrincipalConstraint::Eq(match eref {
                     ast::EntityReference::EUID(e) => Some(e.as_ref().clone().into()),
-                    ast::EntityReference::Slot(_) => None,
+                    ast::EntityReference::Slot(_, _) => None,
                 })
             }
             ast::PrincipalOrResourceConstraint::Is(entity_type) => {
@@ -3049,7 +3049,7 @@ impl Template {
                     entity_type.as_ref().clone().into(),
                     match eref {
                         ast::EntityReference::EUID(e) => Some(e.as_ref().clone().into()),
-                        ast::EntityReference::Slot(_) => None,
+                        ast::EntityReference::Slot(_, _) => None,
                     },
                 )
             }
@@ -3083,13 +3083,13 @@ impl Template {
             ast::PrincipalOrResourceConstraint::In(eref) => {
                 TemplateResourceConstraint::In(match eref {
                     ast::EntityReference::EUID(e) => Some(e.as_ref().clone().into()),
-                    ast::EntityReference::Slot(_) => None,
+                    ast::EntityReference::Slot(_, _) => None,
                 })
             }
             ast::PrincipalOrResourceConstraint::Eq(eref) => {
                 TemplateResourceConstraint::Eq(match eref {
                     ast::EntityReference::EUID(e) => Some(e.as_ref().clone().into()),
-                    ast::EntityReference::Slot(_) => None,
+                    ast::EntityReference::Slot(_, _) => None,
                 })
             }
             ast::PrincipalOrResourceConstraint::Is(entity_type) => {
@@ -3100,7 +3100,7 @@ impl Template {
                     entity_type.as_ref().clone().into(),
                     match eref {
                         ast::EntityReference::EUID(e) => Some(e.as_ref().clone().into()),
-                        ast::EntityReference::Slot(_) => None,
+                        ast::EntityReference::Slot(_, _) => None,
                     },
                 )
             }
@@ -3331,7 +3331,7 @@ impl Policy {
                 .ast
                 .env()
                 .iter()
-                .map(|(key, value)| ((*key).into(), value.clone().into()))
+                .map(|(key, value)| ((key.clone()).into(), value.clone().into()))
                 .collect();
             Some(wrapped_vals)
         }
@@ -3464,7 +3464,7 @@ impl Policy {
             ast::EntityReference::EUID(euid) => EntityUid::ref_cast(euid),
             // PANIC SAFETY: This `unwrap` here is safe due the invariant (values total map) on policies.
             #[allow(clippy::unwrap_used)]
-            ast::EntityReference::Slot(_) => {
+            ast::EntityReference::Slot(_, _) => {
                 EntityUid::ref_cast(self.ast.env().get(&slot).unwrap())
             }
         }
@@ -3760,7 +3760,7 @@ impl LosslessPolicy {
                 if slots.is_empty() {
                     Ok(est)
                 } else {
-                    let unwrapped_vals = slots.iter().map(|(k, v)| (*k, v.into())).collect();
+                    let unwrapped_vals = slots.iter().map(|(k, v)| (k.clone(), v.into())).collect();
                     Ok(est.link(&unwrapped_vals)?)
                 }
             }
